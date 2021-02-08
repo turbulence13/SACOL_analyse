@@ -94,15 +94,13 @@ def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
     data_b[data_b < 0] = 0
     data_b = mean_simple(data_b, meantime)
     data_c = pd.DataFrame(data=data_b, index=data.index)
-
     avg_data = np.mean(data_c.loc[(data_c.index <= top) & (data_c.index >= bottum)].values)
     return data_c, avg_data
 
 
 def plot_by_height(series, top=10.0, bottum=0.0):
     plt.figure(figsize=(3, 4.5))
-    plt.axis([0, 0.05, bottum, top])
-    x_minorlocator = AutoMinorLocator(n=3)
+    plt.axis([0, 0.05, top, bottum])
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
@@ -136,10 +134,6 @@ def Main_procces(date, path, pathf, time_area, height_area):
 
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                        meantime=3, top=height_area[1], bottum=height_area[0])
-
-    Radar_heat(l_Rdd_dic, time_area, height_area)
-    plt.savefig(f_path_heat)
-    plt.close()
     aaa = str(avgdata)
     aaa = aaa[:10]
     plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
@@ -149,15 +143,16 @@ def Main_procces(date, path, pathf, time_area, height_area):
     plt.close()
     print(avgdata)
 
+    Radar_heat(l_Rdd_dic, time_area, height_area)
+    plt.savefig(f_path_heat)
+    plt.close()
+
+
 
 # pathf = input('Target Folder Path:')
 path1 = 'E:/Files Data/SACOL/NIESdat'  # 目标文件夹路径
-pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/1'
+pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/'
 
-try:  # 文件夹创建，用于保存图片，若存在则在不创建
-    os.mkdir(path=path1+'/Figure')
-except FileExistsError:
-    print('fig folder exist')
 try:  # 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
 except FileExistsError:
@@ -167,7 +162,12 @@ files_dic1 = {
     '20181217': [[120, 132], [4, 5.5]],
     '20190116': [[108, 120], [4, 5.5]],
     '20190704': [[6, 18], [4, 5.5]],
-    '20190710': [[6, 18], [3, 4.5]]
+    '20190710': [[6, 18], [3, 4.5]],
+}
+
+files_dic2 = {
+    '20191026': [[84, 96], [2.5, 4]],
+    '20191028': [[36, 48], [3, 5]],
 }
 
 files_dic3 = {
@@ -177,19 +177,35 @@ files_dic3 = {
     '20200309': [[72, 84], [2, 5]]
 }
 
-files_dic2 = {
-    '20181217': [[0, 144], [4, 5.5]],
-    '20190116': [[90, 144], [4, 5.5]],
-    '20190704': [[0, 54], [4, 5.5]],
-    '20190710': [[0, 36], [3, 4.5]]
+files_dic4 = {
+    '20200430': [[108, 120], [4.5, 5.5]],
+    '20200501': [[18, 30], [4.5, 5.5]],
 }
 
+files_dic5 = {
+    '20200617': [[78, 90], [4, 5]],
+    '20200801': [[72, 84], [4, 5]],
+    '20200918': [[72, 84], [4, 5]],
+}
 
-fnamelist = []
+_main_dic = {
+    '1': files_dic1,
+    '2': files_dic2,
+    '3': files_dic3,
+    '4': files_dic4,
+    '5': files_dic5,
+}
 
-for key in files_dic1:
+sector = '5'
+path_plot_dir = pathfig+sector
+try:  # 文件夹创建，用于保存图片，若存在则在不创建
+    os.mkdir(path=path_plot_dir)
+except FileExistsError:
+    print('fig folder exist')
+
+for key in _main_dic[sector]:
     fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-    Main_procces(key, path1, pathfig, files_dic1[key][0], files_dic1[key][1])
+    Main_procces(key, path1, path_plot_dir, _main_dic[sector][key][0], _main_dic[sector][key][1])
 
     '''
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
