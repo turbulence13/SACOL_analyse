@@ -108,7 +108,7 @@ def plot_by_height(series, top=10.0, bottum=0.0):
 
 
 def Main_procces(date, path, pathf, time_area, height_area):
-    files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.csv')
+    files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.dat')
     os.chdir(path)
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=pathf + '/dep_height/')
@@ -122,7 +122,7 @@ def Main_procces(date, path, pathf, time_area, height_area):
     f_path = pathf + '/dep_height/' + date
     f_path_heat = pathf + '/heat_map/' + date  # 根据文件创立图像文件夹(可优化)
     # 文件读取，跳过文件说明，选取高度作为行名，便于画图
-    f_data = pd.read_csv(files, sep=',', index_col='Height(km)', na_values=['NaN'], skiprows=3)
+    f_data = pd.read_table(files, sep='\s+', index_col='Height(km)', na_values=['NaN'], skiprows=3)
     Rddata_dic = {
         'It532': f_data.iloc[0:3000][:],
         'Dp532': f_data.iloc[3000:6000][:],
@@ -151,9 +151,13 @@ def Main_procces(date, path, pathf, time_area, height_area):
 
 
 # pathf = input('Target Folder Path:')
-path1 = 'E:/Files Data/SACOL/NIEScsv'  # 目标文件夹路径
-pathfig = 'E:/Files Data/SACOL/NIEScsv/Figure/1'
+path1 = 'E:/Files Data/SACOL/NIESdat'  # 目标文件夹路径
+pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/1'
 
+try:  # 文件夹创建，用于保存图片，若存在则在不创建
+    os.mkdir(path=path1+'/Figure')
+except FileExistsError:
+    print('fig folder exist')
 try:  # 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
 except FileExistsError:
