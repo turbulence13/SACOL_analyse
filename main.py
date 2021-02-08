@@ -46,7 +46,7 @@ def allspines_set(ax, is_on=True, width=1):  # 坐标轴线格式
 
 
 # def Dfselect_inrange(data,imax,imin):
-def Radar_heat(data_dic, time_area, height_area):  # 针对本次绘图设计绘图函数，应当针对性进行改变
+def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘图设计绘图函数，应当针对性进行改变
 
     x_minorlocator = AutoMinorLocator(n=3)
     y_ticks = np.linspace(0, 1677, 6)
@@ -71,14 +71,16 @@ def Radar_heat(data_dic, time_area, height_area):  # 针对本次绘图设计绘
 
     ax_dic['Dp532'].invert_yaxis()
     ax_dic['Dp532'].set_xlabel('Time')
-    height_c = height_area.copy()
-    height_c[0] = height_c[0]*166.6666
-    height_c[1] = height_c[1]*166.6666
+    if (time_area is not None) & (height_area is not None):
+        height_c = height_area.copy()
+        height_c[0] = height_c[0]*166.6666
+        height_c[1] = height_c[1]*166.6666
     for keys in ax_dic:  # 坐标轴刻度格式
-        ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
-                            linestyles='dashed')
-        ax_dic[keys].hlines(height_c, xmin=time_area[0], xmax=time_area[1], colors='black',
-                            linestyles='dashed')
+        if (time_area is not None) & (height_area is not None):
+            ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
+                                linestyles='dashed')
+            ax_dic[keys].hlines(height_c, xmin=time_area[0], xmax=time_area[1], colors='black',
+                                linestyles='dashed')
         ax_dic[keys].set_yticks(y_ticks)
         ax_dic[keys].set_yticklabels(y_label, rotation=0)
         ax_dic[keys].minorticks_on()
@@ -107,7 +109,7 @@ def plot_by_height(series, top=10.0, bottum=0.0):
     # fig.xticks(np.linspace(0, 1440, 8))
 
 
-def Main_procces(date, path, pathf, time_area, height_area):
+def Main_procces(date, path, pathf, time_area=None, height_area=None):
     files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.dat')
     os.chdir(path)
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
@@ -134,25 +136,27 @@ def Main_procces(date, path, pathf, time_area, height_area):
     l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values < 0] = np.nan
     l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = np.nan
 
-    Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
-                                       meantime=3, top=height_area[1], bottum=height_area[0])
+    if (time_area is not None) & (height_area is not None):
+        Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
+                                           meantime=3, top=height_area[1], bottum=height_area[0])
+        aaa = str(avgdata)
+        aaa = aaa[:10]
+        plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
+        print(np.mean(height_area))
+        plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n' + aaa)
+        plt.savefig(f_path)
+        plt.close()
+        print(avgdata)
 
     Radar_heat(l_Rdd_dic, time_area, height_area)
     plt.savefig(f_path_heat)
     plt.close()
-    aaa = str(avgdata)
-    aaa = aaa[:10]
-    plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
-    print(np.mean(height_area))
-    plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
-    plt.savefig(f_path)
-    plt.close()
-    print(avgdata)
+
 
 
 # pathf = input('Target Folder Path:')
 path1 = 'E:/Files Data/SACOL/NIESdat'  # 目标文件夹路径
-pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/1'
+pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/ALL'
 
 try:  # 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=path1+'/Figure')
@@ -183,15 +187,24 @@ files_dic2 = {
     '20190704': [[0, 54], [4, 5.5]],
     '20190710': [[0, 36], [3, 4.5]]
 }
+os.chdir(path1)
+filelist = os.listdir()
+for file in filelist:
+    print(file[-4:])
+    if file[-4:] == '.dat':
+        print(file)
+        date_temp = file[16:24]
+        Main_procces(date_temp, path1, pathfig)
 
 
-fnamelist = []
-
-for key in files_dic1:
-    fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-    Main_procces(key, path1, pathfig, files_dic1[key][0], files_dic1[key][1])
 
     '''
+    
+for key in files_dic3:
+    fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
+    Main_procces(key, path1, pathfig, files_dic3[key][0], files_dic3[key][1])
+    
+    
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
     print(avgdata)
         
