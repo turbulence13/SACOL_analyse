@@ -46,39 +46,34 @@ def allspines_set(ax, is_on=True, width=1):  # 坐标轴线格式
 
 
 # def Dfselect_inrange(data,imax,imin):
-def Radar_heat(data_dic, time_area, height_area):  # 针对本次绘图设计绘图函数，应当针对性进行改变
-
+def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘图设计绘图函数，应当针对性进行改变
     x_minorlocator = AutoMinorLocator(n=3)
     y_ticks = np.linspace(0, 1677, 6)
     y_label = ('0.0', '2.0', '4.0', '6.0', '8.0', '10.0')
-
     f, ax = plt.subplots(nrows=len(data_dic), sharex=True, figsize=(6, 6))
     i = 0
     ax_dic = {}
-
     for key in data_dic:
         ax_dic[key] = ax[i]
         i = i + 1
-
     sns.heatmap(data_dic['It532'], vmax=40.0, vmin=0.0, cmap='customcb',
                 ax=ax_dic['It532'], yticklabels=400, xticklabels=18)
-
     ax_dic['It532'].invert_yaxis()
     ax_dic['It532'].set_xticks(np.linspace(0, 1440, 8))
-
     sns.heatmap(data_dic['Dp532'], vmax=0.3, vmin=0.0, cmap='customcb',
                 ax=ax_dic['Dp532'], yticklabels=400, xticklabels=18)
-
     ax_dic['Dp532'].invert_yaxis()
     ax_dic['Dp532'].set_xlabel('Time')
     height_c = height_area.copy()
-    height_c[0] = height_c[0]*166.6666
-    height_c[1] = height_c[1]*166.6666
+    if (time_area is not None) & (height_area is not None):
+        height_c[0] = height_c[0]*166.6666
+        height_c[1] = height_c[1]*166.6666
     for keys in ax_dic:  # 坐标轴刻度格式
-        ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
-                            linestyles='dashed')
-        ax_dic[keys].hlines(height_c, xmin=time_area[0], xmax=time_area[1], colors='black',
-                            linestyles='dashed')
+        if (time_area is not None) & (height_area is not None):
+            ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
+                                linestyles='dashed')
+            ax_dic[keys].hlines(height_c, xmin=time_area[0], xmax=time_area[1], colors='black',
+                                linestyles='dashed')
         ax_dic[keys].set_yticks(y_ticks)
         ax_dic[keys].set_yticklabels(y_label, rotation=0)
         ax_dic[keys].minorticks_on()
@@ -104,10 +99,18 @@ def plot_by_height(series, top=10.0, bottum=0.0):
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
-
-def Main_procces(date, path, pathf, time_area, height_area):
+def date_files_reading(date, path):
     files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.dat')
     os.chdir(path)
+    f_data = pd.read_table(files, sep='\s+', index_col='Height(km)', na_values=['NaN'], skiprows=3)
+    data = {
+        'It532': f_data.iloc[0:3000][:],
+        'Dp532': f_data.iloc[3000:6000][:],
+    }
+    return data
+
+
+def Main_procces(date, path, pathf, time_area=None, height_area=None):
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=pathf + '/dep_height/')
     except FileExistsError:
@@ -119,29 +122,26 @@ def Main_procces(date, path, pathf, time_area, height_area):
 
     f_path = pathf + '/dep_height/' + date
     f_path_heat = pathf + '/heat_map/' + date  # 根据文件创立图像文件夹(可优化)
-    # 文件读取，跳过文件说明，选取高度作为行名，便于画图
-    f_data = pd.read_table(files, sep='\s+', index_col='Height(km)', na_values=['NaN'], skiprows=3)
-    Rddata_dic = {
-        'It532': f_data.iloc[0:3000][:],
-        'Dp532': f_data.iloc[3000:6000][:],
-    }
-    l_Rdd_dic = {}
 
+    # 文件读取，跳过文件说明，选取高度作为行名，便于画图
+    Rddata_dic = date_files_reading(date, path)
+    l_Rdd_dic = {}
     for keys in Rddata_dic:
         l_Rdd_dic[keys] = Rddata_dic[keys].loc[(Rddata_dic[keys].index < 10) & (Rddata_dic[keys].index > 0)]
     l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values < 0] = np.nan
-    l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = np.nan
+    l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = 1
 
-    Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
-                                       meantime=3, top=height_area[1], bottum=height_area[0])
-    aaa = str(avgdata)
-    aaa = aaa[:10]
-    plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
-    print(np.mean(height_area))
-    plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
-    plt.savefig(f_path)
-    plt.close()
-    print(avgdata)
+    if (time_area is not None) & (height_area is not None):
+        Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
+                                           meantime=3, top=height_area[1], bottum=height_area[0])
+        aaa = str(avgdata)
+        aaa = aaa[:10]
+        plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
+        print(np.mean(height_area))
+        plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
+        plt.savefig(f_path)
+        plt.close()
+        print(avgdata)
 
     Radar_heat(l_Rdd_dic, time_area, height_area)
     plt.savefig(f_path_heat)
@@ -196,16 +196,16 @@ _main_dic = {
     '5': files_dic5,
 }
 
-sector = '5'
-path_plot_dir = pathfig+sector
-try:  # 文件夹创建，用于保存图片，若存在则在不创建
-    os.mkdir(path=path_plot_dir)
-except FileExistsError:
-    print('fig folder exist')
+for num in _main_dic:
+    path_plot_dir = pathfig+num
+    try:  # 文件夹创建，用于保存图片，若存在则在不创建
+        os.mkdir(path=path_plot_dir)
+    except FileExistsError:
+        print('fig folder exist')
 
-for key in _main_dic[sector]:
-    fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-    Main_procces(key, path1, path_plot_dir, _main_dic[sector][key][0], _main_dic[sector][key][1])
+    for key in _main_dic[num]:
+        fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
+        Main_procces(key, path1, path_plot_dir, _main_dic[num][key][0], _main_dic[num][key][1])
 
     '''
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
