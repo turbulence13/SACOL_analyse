@@ -64,16 +64,16 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
                 ax=ax_dic['Dp532'], yticklabels=400, xticklabels=18)
     ax_dic['Dp532'].invert_yaxis()
     ax_dic['Dp532'].set_xlabel('Time')
-    height_c = height_area.copy()
     if (time_area is not None) & (height_area is not None):
+        height_c = height_area.copy()
         height_c[0] = height_c[0]*166.6666
         height_c[1] = height_c[1]*166.6666
-    for keys in ax_dic:  # 坐标轴刻度格式
-        if (time_area is not None) & (height_area is not None):
+        for keys in ax_dic:  # 坐标轴刻度格式
             ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
                                 linestyles='dashed')
             ax_dic[keys].hlines(height_c, xmin=time_area[0], xmax=time_area[1], colors='black',
                                 linestyles='dashed')
+    for keys in ax_dic:  # 坐标轴刻度格式
         ax_dic[keys].set_yticks(y_ticks)
         ax_dic[keys].set_yticklabels(y_label, rotation=0)
         ax_dic[keys].minorticks_on()
@@ -83,19 +83,19 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
 
 def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
     data_a = data.copy()
-    data_a[np.isnan(data_a)] = 0
-    data_a[np.isinf(data_a)] = 0
-    data_b = np.nanmean(data_a, 1)
+    #data_a[np.isnan(data_a)] = 0
+    #data_a[np.isinf(data_a)] = 0
+    data_b = np.nanmean(data_a, axis=1)
     data_b[data_b < 0] = 0
     data_b = mean_simple(data_b, meantime)
     data_c = pd.DataFrame(data=data_b, index=data.index)
-    avg_data = np.mean(data_c.loc[(data_c.index <= top) & (data_c.index >= bottum)].values)
+    avg_data = np.nanmean(data_c.loc[(data_c.index <= top) & (data_c.index >= bottum)].values)
     return data_c, avg_data
 
 
 def plot_by_height(series, top=10.0, bottum=0.0):
     plt.figure(figsize=(3, 4.5))
-    plt.axis([0, 0.05, top, bottum])
+    plt.axis([0, 0.4, top, bottum])
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
@@ -125,11 +125,12 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
 
     # 文件读取，跳过文件说明，选取高度作为行名，便于画图
     Rddata_dic = date_files_reading(date, path)
+    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values < 0] = np.nan
+    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values > 1] = np.nan
+
     l_Rdd_dic = {}
     for keys in Rddata_dic:
         l_Rdd_dic[keys] = Rddata_dic[keys].loc[(Rddata_dic[keys].index < 10) & (Rddata_dic[keys].index > 0)]
-    l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values < 0] = np.nan
-    l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = 1
 
     if (time_area is not None) & (height_area is not None):
         Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
@@ -146,7 +147,6 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
     Radar_heat(l_Rdd_dic, time_area, height_area)
     plt.savefig(f_path_heat)
     plt.close()
-
 
 
 # pathf = input('Target Folder Path:')
@@ -183,9 +183,9 @@ files_dic4 = {
 }
 
 files_dic5 = {
-    '20200617': [[78, 90], [4, 5]],
-    '20200801': [[72, 84], [4, 5]],
-    '20200918': [[72, 84], [4, 5]],
+    '20200617': [[84, 96], [4, 5]],
+    '20200801': [[90, 102], [4, 5]],
+    '20200918': [[54, 66], [3.5, 4.5]],
 }
 
 _main_dic = {
@@ -196,8 +196,19 @@ _main_dic = {
     '5': files_dic5,
 }
 
-for num in _main_dic:
-    path_plot_dir = pathfig+num
+process_list = ['1', '2', '3', '4', '5']
+
+'''
+os.chdir(path1)
+all_file_list = os.listdir()
+for file in all_file_list:
+    if file[-4:] == '.dat':
+        date = file[16:24]
+        Main_procces(date, path1, pathfig+'ALL')
+'''
+
+for num in process_list:
+    path_plot_dir = pathfig+num+'all_height'
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=path_plot_dir)
     except FileExistsError:
@@ -205,7 +216,7 @@ for num in _main_dic:
 
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-        Main_procces(key, path1, path_plot_dir, _main_dic[num][key][0], _main_dic[num][key][1])
+        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=[0, 10])
 
     '''
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
