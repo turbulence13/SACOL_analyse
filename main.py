@@ -216,7 +216,7 @@ for num in process_list:
 
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=[0, 10])
+        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=_main_dic[num][key][1])
 
     '''
     Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
