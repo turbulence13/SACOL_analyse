@@ -13,16 +13,10 @@ import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-    class hdf_proccess:
+class hdf_proccess:
     # 设定坐标轴线
-    def allspines_set(ax, is_on=True, width=1):  # 坐标轴线格式
-        if is_on:
-            for spine in ax.spines:
-                ax.spines[spine].set_visible(True)
-                ax.spines[spine].set_linewidth(width)
-        else:
-            for spine in ax.spines:
-                ax.spines[spine].set_visible(False)
+    def __init__(self,date):
+        self.date = date[0:1]+'-'+date[2:3]+'-'+date[4:5]
 
 
     # 两经纬度之间距离计算(单位KM)
@@ -224,7 +218,6 @@ import seaborn as sns
 
     # 获取文件内数据字典
     def L1_Reading(fpath):
-
         sd_obj = SD(fpath, SDC.READ)
         Vt_obj = HDF.HDF(fpath).vstart()
         m_data = Vt_obj.attach('metadata').read()[0]
