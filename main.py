@@ -255,6 +255,7 @@ def plot_by_height(series, top=10.0, bottum=0.0):
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
+
 def date_files_reading(date, path):
     files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.dat')
     os.chdir(path)
