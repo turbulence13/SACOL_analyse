@@ -5,133 +5,148 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 import seaborn as sns
 import math
-from pyhdf import HDF
 from pyhdf.SD import *
+from pyhdf import HDF
+import scipy.signal as sig
 
 
-class Satellite_Data():
+def LonLat_Distance(lonlat1, lonlat2):
+    r_earth = 6378.2064
+    d_lonlat = math.acos((math.sin(lonlat1[0] * math.pi / 180) * math.sin(lonlat2[0] * math.pi / 180)) +
+                         (math.cos(lonlat1[0] * math.pi / 180) * math.cos(lonlat2[0] * math.pi / 180) *
+                          math.cos(lonlat1[1] * math.pi / 180 - lonlat2[1] * math.pi / 180))) * r_earth
+    return d_lonlat
 
-    def __init__(self, date, target_latlon):
-        self.date = date[0:1] + '-' + date[2:3] + '-' + date[4:5]
-        self.target_lat = target_latlon
 
-    def LonLat_Distance(self, lonlat1, lonlat2):
-        r_earth = 6378.2064
-        d_lonlat = math.acos((math.sin(lonlat1[0] * math.pi / 180) * math.sin(lonlat2[0] * math.pi / 180)) +
-                             (math.cos(lonlat1[0] * math.pi / 180) * math.cos(lonlat2[0] * math.pi / 180) *
-                              math.cos(lonlat1[1] * math.pi / 180 - lonlat2[1] * math.pi / 180))) * r_earth
-        return d_lonlat
+def Data_dic_select(dic, _min, _max):
+    l_Rd_dic = {}
+    for key in dic:
+        l_Rd_dic[key] = dic[key].loc[:, dic[key].columns < _max]
+        l_Rd_dic[key] = l_Rd_dic[key].loc[:, l_Rd_dic[key].columns > _min]
+    return l_Rd_dic
 
-    def Data_dic_select(self, dic, _min, _max):
-        l_Rd_dic = {}
-        for key in dic:
-            l_Rd_dic[key] = dic[key].loc[:, dic[key].columns < _max]
-            l_Rd_dic[key] = l_Rd_dic[key].loc[:, l_Rd_dic[key].columns > _min]
-        return l_Rd_dic
 
-    def L1_Reading(self, fpath, target_latlon):
-        sd_obj = SD(fpath, SDC.READ)
-        Vt_obj = HDF.HDF(fpath).vstart()
-        m_data = Vt_obj.attach('metadata').read()[0]
-        Height = np.array(m_data[-2])  # 583高度对应实际海拔
-        Lats = sd_obj.select('Latitude').get()
-        Lons = sd_obj.select('Longitude').get()
-        L_route = np.concatenate([Lats.T, Lons.T]).T
-        target_rows = []
+def L2_VFM_Reading(fpath):
+    sd_obj = SD(fpath, SDC.READ)
+    Vt_obj = HDF.HDF(fpath).vstart()
+    m_data = Vt_obj.attach('metadata').read()[0]
+    Height = np.array(m_data[-1])  # 583高度对应实际海拔
+    Lats = sd_obj.select('Latitude').get()
+    Lons = sd_obj.select('Longitude').get()
+    L_route = np.concatenate([Lats.T, Lons.T]).T
+    target_rows = []
 
-        for location in L_route:
-            distance = self.LonLat_Distance(location, target_latlon)
-            if distance < 50:
-                target_rows.append(True)
-            else:
-                target_rows.append(False)
-
-        Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
-        Per532[Per532 < 0] = 0
-        Tol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
-        Tol532[Tol532 < 0] = 0
-        Par532 = Tol532 - Per532
-        # proccess Dep data
-
-        Dep532 = np.true_divide(Per532, Par532)
-        Dep532[Par532 <= 0.0003] = 0
-        Dep532[Par532 <= 0.0000] = 0
-        Dep532[Dep532 > 1] = 1
-        Data_dic = {}
-        Data_dic['Tol532'] = Tol532
-        # Rd_dic['Per532'] = Per532
-        # Rd_dic['Par532'] = Par532
-        Data_dic['Dep532'] = Dep532
-        Data_meta = {
-            'route': L_route,
-            'Lats': Lats,
-            'target rows': target_rows,
-            'Height': Height,
-        }
-        # for key, value in Rd_dic.items():
-        # value.columns = Height.values[0]
-        sd_obj.end()
-        HDF.HDF(fpath).close()
-        return Data_dic, Data_meta
-
-    def L2_VFM_Reading(self, fpath, target_latlon):
-        sd_obj = SD(fpath, SDC.READ)
-        Vt_obj = HDF.HDF(fpath).vstart()
-        m_data = Vt_obj.attach('metadata').read()[0]
-        Height = np.array(m_data[-1])  # 583高度对应实际海拔
-        Lats = sd_obj.select('Latitude').get()
-        Lons = sd_obj.select('Longitude').get()
-        L_route = np.concatenate([Lats.T, Lons.T]).T
-        target_rows = []
-        for location in L_route:
-            distance = self.LonLat_Distance(location, target_latlon)
-            if distance < 50:
-                target_rows.append(True)
-            else:
-                target_rows.append(False)
-        VFM_basic = np.array(sd_obj.select('Feature_Classification_Flags').get())
-        VFM_basic = VFM_basic % 8
-        VFM_1 = np.reshape(VFM_basic[:, 0:165], (VFM_basic.shape[0] * 3, 55))
-        VFM_1 = np.repeat(VFM_1, 5, axis=0)
-        VFM_2 = np.reshape(VFM_basic[:, 165:1165], (VFM_basic.shape[0] * 5, 200))
-        VFM_2 = np.repeat(VFM_2, 3, axis=0)
-        VFM_3 = np.reshape(VFM_basic[:, 1165:5515], (VFM_basic.shape[0] * 15, 290))
-        VFM = np.concatenate((VFM_1, VFM_2, VFM_3), axis=1)
-        target_rows_VFM = np.repeat(target_rows, 15)
-        Rd_dic = {}
-        Rd_dic['VFM'] = VFM
-        Rd_dic_meta = {
-            'route': L_route,
-            'Lats': Lats,
-            'target rows': target_rows,
-            'Height': Height,
-            'target rows VFM': target_rows_VFM,
-        }
-        sd_obj.end()
-        HDF.HDF(fpath).close()
-        return Rd_dic, Rd_dic_meta
-
-    def Data_get(self, f_path, vfm_path):
-        L1_dic, L1_meta = self.L1_Reading(f_path)
-        VFM_dic, VFM_meta = self.L2_VFM_Reading(vfm_path)
-        L1_frame_dic = {}
-        clear_L1_Data = {}
-        target_VFM = {}
-        target_L1 = {}
-        target_route = VFM_meta['route'][VFM_meta['target rows']]
-        if target_route[0][0] < target_route[-1][0]:
-            loc_range = [target_route[0][0], target_route[-1][0]]
+    for location in L_route:
+        distance = LonLat_Distance(location, LZU_LatLon)
+        if distance < 50:
+            target_rows.append(True)
         else:
-            loc_range = [target_route[-1][0], target_route[0][0]]
-        ttt = (loc_range[0] <= L1_meta['Lats']) & (loc_range[1] >= L1_meta['Lats'])
-        fff = ttt.copy()
-        for i in range(len(ttt)):
-            if ttt[i][0]:
-                fff[i + 14][0] = True
-        for keys in L1_dic:
-            target_L1[keys] = L1_dic[keys][fff.T[0]]
-        for keys in VFM_dic:
-            target_VFM[keys] = VFM_dic[keys][VFM_meta['target rows VFM']]
+            target_rows.append(False)
+
+    VFM_basic = np.array(sd_obj.select('Feature_Classification_Flags').get())
+    VFM_basic = VFM_basic % 8
+    VFM_1 = np.reshape(VFM_basic[:, 0:165], (VFM_basic.shape[0] * 3, 55))
+    VFM_1 = np.repeat(VFM_1, 5, axis=0)
+    VFM_2 = np.reshape(VFM_basic[:, 165:1165], (VFM_basic.shape[0] * 5, 200))
+    VFM_2 = np.repeat(VFM_2, 3, axis=0)
+    VFM_3 = np.reshape(VFM_basic[:, 1165:5515], (VFM_basic.shape[0] * 15, 290))
+    VFM = np.concatenate((VFM_1, VFM_2, VFM_3), axis=1)
+    target_rows_VFM = np.repeat(target_rows, 15)
+    Rd_dic = {}
+    Rd_dic['VFM'] = VFM
+    Rd_dic_meta = {
+        'route': L_route,
+        'Lats': Lats,
+        'target rows': target_rows,
+        'Height': Height,
+        'target rows VFM': target_rows_VFM,
+    }
+    sd_obj.end()
+    HDF.HDF(fpath).close()
+    return Rd_dic, Rd_dic_meta
+
+
+# 获取文件内数据字典
+def L1_Reading(fpath):
+    sd_obj = SD(fpath, SDC.READ)
+    Vt_obj = HDF.HDF(fpath).vstart()
+    m_data = Vt_obj.attach('metadata').read()[0]
+    Height = np.array(m_data[-2])  # 583高度对应实际海拔
+    Lats = sd_obj.select('Latitude').get()
+    Lons = sd_obj.select('Longitude').get()
+    L_route = np.concatenate([Lats.T, Lons.T]).T
+    target_rows = []
+
+    for location in L_route:
+        distance = LonLat_Distance(location, LZU_LatLon)
+        if distance < 50:
+            target_rows.append(True)
+        else:
+            target_rows.append(False)
+
+    Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
+    Per532 = sig.medfilt(Per532, [1, 15])
+    Per532[Per532 < 0] = 0
+    Tol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
+    Tol532 = sig.medfilt(Tol532, [1, 15])
+    Tol532[Tol532 < 0] = 0
+    Par532 = Tol532 - Per532
+    Par532 = sig.medfilt(Par532, [1, 15])
+    # proccess Dep data
+
+    Dep532 = np.true_divide(Per532, Par532)
+    Dep532[Par532 <= 0.0003] = 0
+    Dep532[Par532 <= 0.0000] = 0
+    Dep532[Dep532 > 1] = 1
+    Data_dic = {}
+    Data_dic['Tol532'] = Tol532
+    # Rd_dic['Per532'] = Per532
+    # Rd_dic['Par532'] = Par532
+    Data_dic['Dep532'] = Dep532
+    Data_meta = {
+        'route': L_route,
+        'Lats': Lats,
+        'target rows': target_rows,
+        'Height': Height,
+    }
+    # for key, value in Rd_dic.items():
+    # value.columns = Height.values[0]
+    sd_obj.end()
+    HDF.HDF(fpath).close()
+    return Data_dic, Data_meta
+
+
+def clr_dep(dep):
+    depc = dep.copy()
+    depc[depc > 1] = 1.0
+    depc = depc * 10
+    idep = np.trunc(depc) + 1
+    idep[(depc < 0.2) & (depc >= 0.06)] = 2
+    idep[depc is np.nan] = 0
+    return idep
+
+
+def L1_VFM_proccess(f_path, vfm_path):
+    L1_dic, L1_meta = L1_Reading(f_path)
+    VFM_dic, VFM_meta = L2_VFM_Reading(vfm_path)
+    L1_frame_dic = {}
+    clear_L1_Data = {}
+    target_VFM = {}
+    target_L1 = {}
+    target_route = VFM_meta['route'][VFM_meta['target rows']]
+    if target_route[0][0] < target_route[-1][0]:
+        loc_range = [target_route[0][0], target_route[-1][0]]
+    else:
+        loc_range = [target_route[-1][0], target_route[0][0]]
+    ttt = (loc_range[0] <= L1_meta['Lats']) & (loc_range[1] >= L1_meta['Lats'])
+    fff = ttt.copy()
+    for i in range(len(ttt)):
+        if ttt[i][0]:
+            fff[i + 14][0] = True
+        for key in L1_dic:
+            target_L1[key] = L1_dic[key][fff.T[0]]
+        for key in VFM_dic:
+            target_VFM[key] = VFM_dic[key][VFM_meta['target rows VFM']]
         cloud_status = []
 
         for i in target_VFM['VFM']:
@@ -139,18 +154,21 @@ class Satellite_Data():
                 cloud_status.append(False)
             else:
                 cloud_status.append(True)
-        if cloud_status.count(True) / len(cloud_status) >= 0.0:
-            for keys in target_L1:
-                L1_frame_dic[keys] = pd.DataFrame(target_L1[keys])
-                L1_frame_dic[keys].columns = L1_meta['Height']
-                clear_L1_Data[keys] = pd.DataFrame(target_L1[keys][cloud_status])
-                clear_L1_Data[keys].columns = L1_meta['Height']
-            l_Rd_dic = self.Data_dic_select(L1_frame_dic, 0, 30.1)
-            clear_L1_Dic = self.Data_dic_select(clear_L1_Data, 0, 30.1)
-            Avg_Rd = {}
-            for keys in clear_L1_Data:
-                Avg_Rd[keys] = np.nanmean(clear_L1_Dic[keys].values, axis=0)
-                Avg_Rd[keys] = mean5_3(Avg_Rd[keys], 10)
+
+    if cloud_status.count(True)/len(cloud_status) >= 0.0:
+        for keys in target_L1:
+            L1_frame_dic[keys] = pd.DataFrame(target_L1[keys])
+            L1_frame_dic[keys].columns = L1_meta['Height']
+            clear_L1_Data[keys] = pd.DataFrame(target_L1[keys][cloud_status])
+            clear_L1_Data[keys].columns = L1_meta['Height']
+
+        l_Rd_dic = Data_dic_select(L1_frame_dic, -0.5, 30.1)
+        clear_L1_Dic = Data_dic_select(clear_L1_Data, 0, 30.1)
+        Avg_Rd = {}
+        for keys in clear_L1_Data:
+            Avg_Rd[keys] = np.nanmean(clear_L1_Dic[keys].values, axis=0)
+            Avg_Rd[keys] = mean5_3(Avg_Rd[keys], 10)
+        return clear_L1_Dic
 
 
 def mean5_3(Series, m):
@@ -213,8 +231,8 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
     ax_dic['Dp532'].set_xlabel('Time')
     if (time_area is not None) & (height_area is not None):
         height_c = height_area.copy()
-        height_c[0] = height_c[0] * 166.6666
-        height_c[1] = height_c[1] * 166.6666
+        height_c[0] = height_c[0]*166.6666
+        height_c[1] = height_c[1]*166.6666
         for keys in ax_dic:  # 坐标轴刻度格式
             ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
                                 linestyles='dashed')
@@ -230,8 +248,8 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
 
 def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
     data_a = data.copy()
-    # data_a[np.isnan(data_a)] = 0
-    # data_a[np.isinf(data_a)] = 0
+    #data_a[np.isnan(data_a)] = 0
+    #data_a[np.isinf(data_a)] = 0
     data_b = np.nanmean(data_a, axis=1)
     data_b[data_b < 0] = 0
     data_b = mean_simple(data_b, meantime)
@@ -245,7 +263,6 @@ def plot_by_height(series, top=10.0, bottum=0.0):
     plt.axis([0, 0.4, top, bottum])
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
-
 
 def date_files_reading(date, path):
     files = ('SACOL_NIESLIDAR_' + date + '_Int532_Dep532_Int1064.dat')
@@ -287,7 +304,7 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
         aaa = aaa[:10]
         plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
         print(np.mean(height_area))
-        plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n' + aaa)
+        plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
         plt.savefig(f_path)
         plt.close()
         print(avgdata)
@@ -300,6 +317,10 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
 # pathf = input('Target Folder Path:')
 path1 = 'E:/Files Data/SACOL/NIESdat'  # 目标文件夹路径
 pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/'
+path_L1 = 'E:/Files Data/SACOL/L1_data/'
+path_vfm = 'E:/Files Data/SACOL/VFM_data/'
+
+LZU_LatLon = [35.946, 104.137]
 
 try:  # 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
@@ -356,7 +377,7 @@ for file in all_file_list:
 '''
 
 for num in process_list:
-    path_plot_dir = pathfig + num + 'all_height'
+    path_plot_dir = pathfig+num+'all_height'
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=path_plot_dir)
     except FileExistsError:
