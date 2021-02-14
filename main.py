@@ -116,17 +116,8 @@ def L1_Reading(fpath):
     return Data_dic, Data_meta
 
 
-def clr_dep(dep):
-    depc = dep.copy()
-    depc[depc > 1] = 1.0
-    depc = depc * 10
-    idep = np.trunc(depc) + 1
-    idep[(depc < 0.2) & (depc >= 0.06)] = 2
-    idep[depc is np.nan] = 0
-    return idep
-
-
 def L1_VFM_proccess(f_path, vfm_path):
+
     L1_dic, L1_meta = L1_Reading(f_path)
     VFM_dic, VFM_meta = L2_VFM_Reading(vfm_path)
     L1_frame_dic = {}
@@ -375,6 +366,8 @@ for file in all_file_list:
         date = file[16:24]
         Main_procces(date, path1, pathfig+'ALL')
 '''
+
+
 
 for num in process_list:
     path_plot_dir = pathfig+num+'all_height'
