@@ -415,7 +415,7 @@ for num in process_list:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
 
         Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
-                     height_area=[0, 7.5], calibration=cal_dic[num], horizontal=[0, 0.3])
+                     height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.3])
 
 print(cal_dic)
 
