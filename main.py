@@ -280,15 +280,11 @@ def target_average_dp(date, path, time_area, height_area):
 
 
 def Main_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[-0.1, 0.4]):
-    try:  # 文件夹创建，用于保存图片，若存在则在不创建
-        os.mkdir(path=pathf + '/dep_height/')
-    except FileExistsError:
-        print('fig folder exist')
-    try:
-        os.mkdir(path=pathf + '/heat_map/')
-    except FileExistsError:
-        print('heat folder exist')
 
+    if os.path.exists(pathf + '/dep_height/'):
+        os.mkdir(path=pathf + '/dep_height/')
+    if os.path.exists(pathf + '/heat_map/'):
+        os.mkdir(path=pathf + '/heat_map/')
     f_path = pathf + '/dep_height/' + date
     f_path_heat = pathf + '/heat_map/' + date  # 根据文件创立图像文件夹(可优化)
 
@@ -296,8 +292,8 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None, calibratio
     Rddata_dic = date_files_reading(date, path)
     Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values < 0] = np.nan
     Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values > 1] = np.nan
-
     l_Rdd_dic = {}
+
     for keys in Rddata_dic:
         l_Rdd_dic[keys] = Rddata_dic[keys].loc[(Rddata_dic[keys].index < 10) & (Rddata_dic[keys].index > 0)]
 
@@ -330,10 +326,8 @@ path_vfm = 'E:/Files Data/SACOL/VFM_data/'
 
 LZU_LatLon = [35.946, 104.137]
 
-try:  # 文件夹创建，用于保存图片，若存在则在不创建
+if not os.path.exists(pathfig):# 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
-except FileExistsError:
-    print('fig folder exist')
 
 files_dic1 = {
     '20181217': [[120, 132], [2, 2.5]],
@@ -388,32 +382,24 @@ for file in all_file_list:
 for num in process_list:
 
     path_plot_dir = pathfig+num
-    try:  # 文件夹创建，用于保存图片，若存在则在不创建
+    if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
-    except FileExistsError:
-        print('fig folder exist')
+
     cal_list = []
 
     for key in _main_dic[num]:
-        fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
         Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
                      height_area=_main_dic[num][key][1], horizontal=[0, 0.3])
-
         avg_dp, dp_height = target_average_dp(key, path1, time_area=_main_dic[num][key][0],
                                               height_area=_main_dic[num][key][1])
         cal_list.append(avg_dp-0.0044)
-
     cal_dic[num] = np.mean(cal_list)
 
     path_plot_dir = pathfig + num +'_all_height'
-    try:  # 文件夹创建，用于保存图片，若存在则在不创建
+    if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
-    except FileExistsError:
-        print('fig folder exist')
 
     for key in _main_dic[num]:
-        fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-
         Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
                      height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.3])
 
