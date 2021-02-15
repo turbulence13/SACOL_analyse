@@ -249,9 +249,11 @@ def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
     return data_c, avg_data
 
 
-def plot_by_height(series, top=10.0, bottum=0.0):
+def plot_by_height(series, top=10.0, bottum=0.0, horizontal=None):
+    if horizontal is None:
+        horizontal = [0, 0.1]
     plt.figure(figsize=(3, 4.5))
-    plt.axis([0, 0.1, top, bottum])
+    plt.axis([horizontal[0], horizontal[1], top, bottum])
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
@@ -278,7 +280,7 @@ def target_average_dp(date, path, time_area, height_area):
     return avgdata, Dp_height
 
 
-def Main_procces(date, path, pathf, time_area=None, height_area=None):
+def Main_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[-0.1, 0.4]):
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=pathf + '/dep_height/')
     except FileExistsError:
@@ -305,8 +307,12 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
                                            meantime=3, top=height_area[1], bottum=height_area[0])
         aaa = str(avgdata)
         aaa = aaa[:10]
-        plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1])
-        print(np.mean(height_area))
+        plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1], horizontal=horizontal)
+
+        if calibration is not None:
+            cal_Dp = Dp_height - calibration
+            plt.plot(cal_Dp.values, cal_Dp.index, color='black', linewidth=1.0)
+
         plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
         plt.savefig(f_path)
         plt.close()
@@ -368,7 +374,7 @@ _main_dic = {
     '5': files_dic5,
 }
 
-avg_dp_dic = {}
+cal_dic = {}
 process_list = ['1', '2', '3', '4', '5']
 
 '''
@@ -387,16 +393,30 @@ for num in process_list:
         os.mkdir(path=path_plot_dir)
     except FileExistsError:
         print('fig folder exist')
+    cal_list = []
 
-    avg_dp_dic[num] = []
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=_main_dic[num][key][1])
+        # Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=_main_dic[num][key][1])
         avg_dp, dp_height = target_average_dp(key, path1, time_area=_main_dic[num][key][0],
                                               height_area=_main_dic[num][key][1])
-        avg_dp_dic[num].append(avg_dp)
+        cal_list.append(avg_dp-0.0044)
 
-print(avg_dp_dic)
+    cal_dic[num] = np.mean(cal_list)
+
+    path_plot_dir = pathfig + num +'_all_height'
+    try:  # 文件夹创建，用于保存图片，若存在则在不创建
+        os.mkdir(path=path_plot_dir)
+    except FileExistsError:
+        print('fig folder exist')
+
+    for key in _main_dic[num]:
+        fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
+        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
+                     height_area=[0, 10], calibration=cal_dic[num], horizontal=[-0.1, 0.4])
+
+print(cal_dic)
+
 '''
 Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
 print(avgdata)
