@@ -117,7 +117,6 @@ def L1_Reading(fpath):
 
 
 def L1_VFM_proccess(f_path, vfm_path):
-
     L1_dic, L1_meta = L1_Reading(f_path)
     VFM_dic, VFM_meta = L2_VFM_Reading(vfm_path)
     L1_frame_dic = {}
@@ -337,33 +336,33 @@ except FileExistsError:
     print('fig folder exist')
 
 files_dic1 = {
-    '20181217': [[120, 132], [4, 5.5]],
-    '20190116': [[108, 120], [4, 5.5]],
-    '20190704': [[6, 18], [4, 5.5]],
-    '20190710': [[6, 18], [3, 4.5]],
+    '20181217': [[120, 132], [2, 2.5]],
+    '20190116': [[108, 120], [2, 3]],
+    '20190704': [[6, 18], [2.5, 3]],
+    '20190710': [[6, 18], [1.5, 2]],
 }
 
 files_dic2 = {
-    '20191026': [[84, 96], [2.5, 4]],
-    '20191028': [[36, 48], [3, 5]],
+    '20191026': [[84, 96], [2.5, 3]],
+    '20191028': [[36, 48], [2.5, 3.5]],
 }
 
 files_dic3 = {
-    '20191113': [[120, 132], [3, 4.5]],
-    '20191209': [[6, 18], [2.5, 4]],
-    '20191222': [[6, 18], [2, 4]],
-    '20200309': [[72, 84], [2, 5]]
+    '20191113': [[120, 132], [2, 2.5]],
+    '20191209': [[6, 18], [2.5, 3]],
+    '20191222': [[6, 18], [2, 2.5]],
+    '20200309': [[72, 84], [1.8, 2.2]]
 }
 
 files_dic4 = {
-    '20200430': [[108, 120], [4.5, 5.5]],
-    '20200501': [[18, 30], [4.5, 5.5]],
+    '20200430': [[108, 120], [4.2, 5.5]],
+    '20200501': [[18, 30], [3.9, 4.3]],
 }
 
 files_dic5 = {
-    '20200617': [[84, 96], [4, 5]],
-    '20200801': [[90, 102], [4, 5]],
-    '20200918': [[54, 66], [3.5, 4.5]],
+    '20200617': [[84, 96], [3.4, 4]],
+    '20200801': [[90, 102], [3.4, 4]],
+    '20200918': [[54, 66], [3.3, 3.8]],
 }
 
 _main_dic = {
@@ -397,7 +396,9 @@ for num in process_list:
 
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
-        # Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=_main_dic[num][key][1])
+        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
+                     height_area=_main_dic[num][key][1], horizontal=[0, 0.3])
+
         avg_dp, dp_height = target_average_dp(key, path1, time_area=_main_dic[num][key][0],
                                               height_area=_main_dic[num][key][1])
         cal_list.append(avg_dp-0.0044)
@@ -412,8 +413,9 @@ for num in process_list:
 
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
+
         Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
-                     height_area=[0, 10], calibration=cal_dic[num], horizontal=[-0.1, 0.4])
+                     height_area=[0, 7.5], calibration=cal_dic[num], horizontal=[0, 0.3])
 
 print(cal_dic)
 
