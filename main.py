@@ -239,8 +239,8 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
 
 def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
     data_a = data.copy()
-    #data_a[np.isnan(data_a)] = 0
-    #data_a[np.isinf(data_a)] = 0
+    # data_a[np.isnan(data_a)] = 0
+    # data_a[np.isinf(data_a)] = 0
     data_b = np.nanmean(data_a, axis=1)
     data_b[data_b < 0] = 0
     data_b = mean_simple(data_b, meantime)
@@ -251,7 +251,7 @@ def dep_by_height(data, meantime=1, top=10.0, bottum=0.0):
 
 def plot_by_height(series, top=10.0, bottum=0.0):
     plt.figure(figsize=(3, 4.5))
-    plt.axis([0, 0.4, top, bottum])
+    plt.axis([0, 0.1, top, bottum])
     plt.plot(series.values, series.index, color='black', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
@@ -265,6 +265,17 @@ def date_files_reading(date, path):
         'Dp532': f_data.iloc[3000:6000][:],
     }
     return data
+
+
+def target_average_dp(date, path, time_area, height_area):
+
+    # 文件读取，跳过文件说明，选取高度作为行名，便于画图
+    Rddata_dic = date_files_reading(date, path)
+    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values < 0] = np.nan
+    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values > 1] = np.nan
+    Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
+                                       meantime=3, top=height_area[1], bottum=height_area[0])
+    return avgdata, Dp_height
 
 
 def Main_procces(date, path, pathf, time_area=None, height_area=None):
@@ -308,7 +319,7 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None):
 
 # pathf = input('Target Folder Path:')
 path1 = 'E:/Files Data/SACOL/NIESdat'  # 目标文件夹路径
-pathfig = 'E:/Files Data/SACOL/NIESdat/Figure/'
+pathfig = 'E:/Files Data/SACOL/Figure/'
 path_L1 = 'E:/Files Data/SACOL/L1_data/'
 path_vfm = 'E:/Files Data/SACOL/VFM_data/'
 
@@ -357,6 +368,7 @@ _main_dic = {
     '5': files_dic5,
 }
 
+avg_dp_dic = {}
 process_list = ['1', '2', '3', '4', '5']
 
 '''
@@ -368,33 +380,36 @@ for file in all_file_list:
         Main_procces(date, path1, pathfig+'ALL')
 '''
 
-
-
 for num in process_list:
-    path_plot_dir = pathfig+num+'all_height'
+
+    path_plot_dir = pathfig+num
     try:  # 文件夹创建，用于保存图片，若存在则在不创建
         os.mkdir(path=path_plot_dir)
     except FileExistsError:
         print('fig folder exist')
 
+    avg_dp_dic[num] = []
     for key in _main_dic[num]:
         fname = ('SACOL_NIESLIDAR_' + key + '_Int532_Dep532_Int1064.csv')
         Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0], height_area=_main_dic[num][key][1])
+        avg_dp, dp_height = target_average_dp(key, path1, time_area=_main_dic[num][key][0],
+                                              height_area=_main_dic[num][key][1])
+        avg_dp_dic[num].append(avg_dp)
 
-    '''
-    Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
-    print(avgdata)
-        
-    plot_by_height(Dp_height)
+print(avg_dp_dic)
+'''
+Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
+print(avgdata)
+    
+plot_by_height(Dp_height)
 
-    plt.savefig(f_path)
-    plt.close()
-    '''
+plt.savefig(f_path)
+plt.close()
 
-'''        l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values < 0] = 0
-        l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = 1
-        print(l_Rdd_dic['Dp532'])
-        plot_by_height(l_Rdd_dic['Dp532'].iloc[:, 80])'''
+l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values < 0] = 0
+l_Rdd_dic['Dp532'].values[l_Rdd_dic['Dp532'].values > 1] = 1
+print(l_Rdd_dic['Dp532'])
+plot_by_height(l_Rdd_dic['Dp532'].iloc[:, 80])'''
 
 '''
         sns.heatmap(Rddata_dic['It1064'], vmax=1.0, vmin=0.0, cmap='rainbow', ax=ax_dic['It1064'])
