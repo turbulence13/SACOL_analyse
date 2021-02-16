@@ -200,7 +200,6 @@ def allspines_set(ax, is_on=True, width=1):  # 坐标轴线格式
             ax.spines[spine].set_visible(False)
 
 
-# def Dfselect_inrange(data,imax,imin):
 def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘图设计绘图函数，应当针对性进行改变
     x_minorlocator = AutoMinorLocator(n=3)
     y_ticks = np.linspace(0, 1677, 6)
@@ -279,11 +278,11 @@ def target_average_dp(date, path, time_area, height_area):
     return avgdata, Dp_height
 
 
-def Main_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[-0.1, 0.4]):
+def Main_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[0.0, 0.4]):
 
-    if os.path.exists(pathf + '/dep_height/'):
+    if not os.path.exists(pathf + '/dep_height/'):
         os.mkdir(path=pathf + '/dep_height/')
-    if os.path.exists(pathf + '/heat_map/'):
+    if not os.path.exists(pathf + '/heat_map/'):
         os.mkdir(path=pathf + '/heat_map/')
     f_path = pathf + '/dep_height/' + date
     f_path_heat = pathf + '/heat_map/' + date  # 根据文件创立图像文件夹(可优化)
@@ -296,6 +295,8 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None, calibratio
 
     for keys in Rddata_dic:
         l_Rdd_dic[keys] = Rddata_dic[keys].loc[(Rddata_dic[keys].index < 10) & (Rddata_dic[keys].index > 0)]
+    if calibration is not None:
+        l_Rdd_dic['Dp532'] = l_Rdd_dic['Dp532'] - calibration
 
     if (time_area is not None) & (height_area is not None):
         Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
@@ -329,46 +330,63 @@ LZU_LatLon = [35.946, 104.137]
 if not os.path.exists(pathfig):# 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
 
-files_dic1 = {
+cal_dic1 = {
     '20181217': [[120, 132], [2, 2.5]],
     '20190116': [[108, 120], [2, 3]],
     '20190704': [[6, 18], [2.5, 3]],
-    '20190710': [[6, 18], [1.5, 2]],
+    '20190710': [[12, 24], [1.5, 2]],
 }
-
-files_dic2 = {
+cal_dic2 = {
     '20191026': [[84, 96], [2.5, 3]],
     '20191028': [[36, 48], [2.5, 3.5]],
 }
-
-files_dic3 = {
+cal_dic3 = {
     '20191113': [[120, 132], [2, 2.5]],
     '20191209': [[6, 18], [2.5, 3]],
     '20191222': [[6, 18], [2, 2.5]],
     '20200309': [[72, 84], [1.8, 2.2]]
 }
-
-files_dic4 = {
+cal_dic4 = {
     '20200430': [[108, 120], [4.2, 5.5]],
     '20200501': [[18, 30], [3.9, 4.3]],
 }
-
-files_dic5 = {
+cal_dic5 = {
     '20200617': [[84, 96], [3.4, 4]],
-    '20200801': [[90, 102], [3.4, 4]],
-    '20200918': [[54, 66], [3.3, 3.8]],
+    '20200801': [[90, 102], [3.1, 3.5]],
+    '20200918': [[54, 66], [3.0, 3.5]],
 }
-
-_main_dic = {
-    '1': files_dic1,
-    '2': files_dic2,
-    '3': files_dic3,
-    '4': files_dic4,
-    '5': files_dic5,
+cal_main_dic = {
+    '1': cal_dic1,
+    '2': cal_dic2,
+    '3': cal_dic3,
+    '4': cal_dic4,
+    '5': cal_dic5,
 }
-
 cal_dic = {}
 process_list = ['1', '2', '3', '4', '5']
+
+satel_dic1 = {
+    '20181116': [[111, 117], [0, 10]],
+}
+satel_dic2 = {
+    '20181116': [[111, 117], [0, 10]],
+}
+satel_dic3 = {
+    '20181116': [[111, 117], [0, 10]],
+}
+satel_dic4 = {
+    '20181116': [[111, 117], [0, 10]],
+}
+satel_dic5 = {
+    '20181116': [[111, 117], [0, 10]],
+}
+satel_main_dic = {
+    '1': satel_dic1,
+    '2': satel_dic2,
+    '3': satel_dic3,
+    '4': satel_dic4,
+    '5': satel_dic5,
+}
 
 '''
 os.chdir(path1)
@@ -380,28 +398,25 @@ for file in all_file_list:
 '''
 
 for num in process_list:
-
     path_plot_dir = pathfig+num
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
-
     cal_list = []
-
-    for key in _main_dic[num]:
-        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
-                     height_area=_main_dic[num][key][1], horizontal=[0, 0.3])
-        avg_dp, dp_height = target_average_dp(key, path1, time_area=_main_dic[num][key][0],
-                                              height_area=_main_dic[num][key][1])
+    for key in cal_main_dic[num]:
+        Main_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
+                     height_area=cal_main_dic[num][key][1], horizontal=[0, 0.02])
+        avg_dp, dp_height = target_average_dp(key, path1, time_area=cal_main_dic[num][key][0],
+                                              height_area=cal_main_dic[num][key][1])
         cal_list.append(avg_dp-0.0044)
-    cal_dic[num] = np.mean(cal_list)
+    cal_dic[num] = np.min(cal_list)
 
     path_plot_dir = pathfig + num +'_all_height'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
-    for key in _main_dic[num]:
-        Main_procces(key, path1, path_plot_dir, time_area=_main_dic[num][key][0],
-                     height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.3])
+    for key in cal_main_dic[num]:
+        Main_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
+                     height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
 
 print(cal_dic)
 
