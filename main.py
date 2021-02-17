@@ -7,7 +7,9 @@ import seaborn as sns
 import math
 from pyhdf.SD import *
 from pyhdf import HDF
+from pyhdf.VS import *
 import scipy.signal as sig
+import re
 
 
 def LonLat_Distance(lonlat1, lonlat2):
@@ -93,15 +95,64 @@ def L1_Reading(fpath):
     Par532 = Tol532 - Per532
     Par532 = sig.medfilt(Par532, [1, 15])
     # proccess Dep data
-
     Dep532 = np.true_divide(Per532, Par532)
     Dep532[Par532 <= 0.0003] = 0
     Dep532[Par532 <= 0.0000] = 0
     Dep532[Dep532 > 1] = 1
     Data_dic = {}
     Data_dic['Tol532'] = Tol532
-    # Rd_dic['Per532'] = Per532
-    # Rd_dic['Par532'] = Par532
+    # Data_dic['Per532'] = Per532
+    # Data_dic['Par532'] = Par532
+    Data_dic['Dep532'] = Dep532
+    Data_meta = {
+        'route': L_route,
+        'Lats': Lats,
+        'target rows': target_rows,
+        'Height': Height,
+    }
+    # for key, value in Rd_dic.items():
+    # value.columns = Height.values[0]
+    sd_obj.end()
+    HDF.HDF(fpath).close()
+    return Data_dic, Data_meta
+
+
+def L1_mean_Reading(fpath):
+    sd_obj = SD(fpath, SDC.READ)
+    Vt_obj = HDF.HDF(fpath).vstart()
+    m_data = Vt_obj.attach('metadata').read()[0]
+    Height = np.array(m_data[-2])  # 583高度对应实际海拔
+    Lats = sd_obj.select('Latitude').get()
+    Lons = sd_obj.select('Longitude').get()
+    L_route = np.concatenate([Lats.T, Lons.T]).T
+    target_rows = []
+
+    for location in L_route:
+        distance = LonLat_Distance(location, LZU_LatLon)
+        if distance < 50:
+            target_rows.append(True)
+        else:
+            target_rows.append(False)
+
+    Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
+    Per532 = sig.medfilt(Per532, [1, 15])
+    Per532[Per532 < 0] = 0
+    Tol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
+    Tol532 = sig.medfilt(Tol532, [1, 15])
+    Tol532[Tol532 < 0] = 0
+    Par532 = Tol532 - Per532
+    Par532 = sig.medfilt(Par532, [1, 15])
+    Per532_m = np.nanmean(Per532, axis=0)
+    Par532_m = np.nanmean(Par532, axis=0)
+    # proccess Dep data
+    Dep532 = np.true_divide(Per532_m, Par532_m)
+    Dep532[Par532_m <= 0.0003] = 0
+    Dep532[Par532_m <= 0.0000] = 0
+    Dep532[Dep532 > 1] = 1
+    Data_dic = {}
+    Data_dic['Tol532'] = Tol532
+    # Data_dic['Per532'] = Per532
+    # Data_dic['Par532'] = Par532
     Data_dic['Dep532'] = Dep532
     Data_meta = {
         'route': L_route,
@@ -267,6 +318,22 @@ def date_files_reading(date, path):
     return data
 
 
+def date_L1_reading(date, path):
+
+    os.chdir(path)
+    f_list = os.listdir(path)
+    t_date = date[0:4]+'-'+date[4:6]+'-'+date[6:8]
+    for files in f_list:
+        fname = re.match('^CAL_LID_L1-Standard-V4-10\.'+t_date+'.*\.hdf$',files)
+        if fname is not None:
+            Data_dic, Data_meta = L1_mean_Reading(files)
+            # Data_mean = np.nanmean(Data_dic['Dep532'], axis=0)
+            height = Data_meta['Height'] - 1.961
+            Data_height = pd.DataFrame(Data_dic['Dep532'], index=height)
+
+    return Data_height
+
+
 def target_average_dp(date, path, time_area, height_area):
 
     # 文件读取，跳过文件说明，选取高度作为行名，便于画图
@@ -278,7 +345,32 @@ def target_average_dp(date, path, time_area, height_area):
     return avgdata, Dp_height
 
 
-def Main_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[0.0, 0.4]):
+def Satellite_compare(date, path_SACOL, path_L1, path_f, time_area=None,
+                      height_area=[0, 10], calibration=None, horizontal=[0.0, 0.4]):
+
+    if not os.path.exists(path_f + '/dep_height/'):
+        os.mkdir(path=path_f + '/dep_height/')
+    f_path = path_f + '/dep_height/' + date
+    path_L1 = path_L1
+    Sacol_data = date_files_reading(date, path_SACOL)
+    Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
+    Sacol_data['Dp532'].values[Sacol_data['Dp532'].values > 1] = np.nan
+    L1_data = date_L1_reading(date, path_L1)
+    Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
+                                       meantime=3, top=height_area[1], bottum=height_area[0])
+    aaa = str(avgdata)[:10]
+    if calibration is not None:
+        cal_Dp = Dp_height - calibration
+        plot_by_height(cal_Dp, top=height_area[0], bottum=height_area[1], horizontal=horizontal)
+    else:
+        plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1], horizontal=horizontal)
+
+    plt.plot(L1_data.values,L1_data.index, color='red', linewidth=1.0)
+    plt.savefig(f_path)
+    plt.close()
+
+
+def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[0.0, 0.4]):
 
     if not os.path.exists(pathf + '/dep_height/'):
         os.mkdir(path=pathf + '/dep_height/')
@@ -288,18 +380,18 @@ def Main_procces(date, path, pathf, time_area=None, height_area=None, calibratio
     f_path_heat = pathf + '/heat_map/' + date  # 根据文件创立图像文件夹(可优化)
 
     # 文件读取，跳过文件说明，选取高度作为行名，便于画图
-    Rddata_dic = date_files_reading(date, path)
-    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values < 0] = np.nan
-    Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values > 1] = np.nan
+    Sacol_data = date_files_reading(date, path)
+    Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
+    Sacol_data['Dp532'].values[Sacol_data['Dp532'].values > 1] = np.nan
     l_Rdd_dic = {}
 
-    for keys in Rddata_dic:
-        l_Rdd_dic[keys] = Rddata_dic[keys].loc[(Rddata_dic[keys].index < 10) & (Rddata_dic[keys].index > 0)]
+    for keys in Sacol_data:
+        l_Rdd_dic[keys] = Sacol_data[keys].loc[(Sacol_data[keys].index < 10) & (Sacol_data[keys].index > 0)]
     if calibration is not None:
         l_Rdd_dic['Dp532'] = l_Rdd_dic['Dp532'] - calibration
 
     if (time_area is not None) & (height_area is not None):
-        Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].iloc[:, time_area[0]:time_area[1]],
+        Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                            meantime=3, top=height_area[1], bottum=height_area[0])
         aaa = str(avgdata)
         aaa = aaa[:10]
@@ -380,6 +472,7 @@ satel_dic4 = {
 satel_dic5 = {
     '20181116': [[111, 117], [0, 10]],
 }
+
 satel_main_dic = {
     '1': satel_dic1,
     '2': satel_dic2,
@@ -403,7 +496,7 @@ for num in process_list:
         os.mkdir(path=path_plot_dir)
     cal_list = []
     for key in cal_main_dic[num]:
-        Main_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
+        Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
                      height_area=cal_main_dic[num][key][1], horizontal=[0, 0.02])
         avg_dp, dp_height = target_average_dp(key, path1, time_area=cal_main_dic[num][key][0],
                                               height_area=cal_main_dic[num][key][1])
@@ -415,8 +508,17 @@ for num in process_list:
         os.mkdir(path=path_plot_dir)
 
     for key in cal_main_dic[num]:
-        Main_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
-                     height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
+        Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
+                          height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
+
+    path_plot_dir = pathfig + num +'_satellite'
+    if not os.path.exists(path_plot_dir):
+        os.mkdir(path=path_plot_dir)
+
+    for key in satel_main_dic[num]:
+        Satellite_compare(key, path1, path_L1, path_plot_dir, time_area=satel_main_dic[num][key][0],
+                          height_area=[0, 15], calibration=cal_dic[num], horizontal=[0.0, 0.4])
+
 
 print(cal_dic)
 
