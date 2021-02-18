@@ -168,6 +168,7 @@ def L1_mean_Reading(fpath):
 
 
 def L1_VFM_proccess(f_path, vfm_path):
+    print('hi')
     L1_dic, L1_meta = L1_Reading(f_path)
     VFM_dic, VFM_meta = L2_VFM_Reading(vfm_path)
     L1_frame_dic = {}
@@ -179,44 +180,37 @@ def L1_VFM_proccess(f_path, vfm_path):
         loc_range = [target_route[0][0], target_route[-1][0]]
     else:
         loc_range = [target_route[-1][0], target_route[0][0]]
+    del target_route
     ttt = (loc_range[0] <= L1_meta['Lats']) & (loc_range[1] >= L1_meta['Lats'])
     fff = ttt.copy()
     for i in range(len(ttt)):
         if ttt[i][0]:
             fff[i + 14][0] = True
-        for key in L1_dic:
-            target_L1[key] = L1_dic[key][fff.T[0]]
-        for key in VFM_dic:
-            target_VFM[key] = VFM_dic[key][VFM_meta['target rows VFM']]
-        cloud_status = []
+    for key in L1_dic:
+        target_L1[key] = L1_dic[key][fff.T[0]]
+    for key in VFM_dic:
+        target_VFM[key] = VFM_dic[key][VFM_meta['target rows VFM']]
+    cloud_status = []
+    for j in target_VFM['VFM']:
+        if 2 in target_VFM['VFM'][j]:
+            cloud_status.append(False)
+        else:
+            cloud_status.append(True)
+    for keys in target_L1:
+        L1_frame_dic[keys] = pd.DataFrame(target_L1[keys], columns=L1_meta['Height'])
+        clear_L1_Data[keys] = pd.DataFrame(target_L1[keys][cloud_status], columns=L1_meta['Height'])
 
-        for i in target_VFM['VFM']:
-            if 2 in target_VFM['VFM'][i]:
-                cloud_status.append(False)
-            else:
-                cloud_status.append(True)
-
-    if cloud_status.count(True)/len(cloud_status) >= 0.0:
-        for keys in target_L1:
-            L1_frame_dic[keys] = pd.DataFrame(target_L1[keys])
-            L1_frame_dic[keys].columns = L1_meta['Height']
-            clear_L1_Data[keys] = pd.DataFrame(target_L1[keys][cloud_status])
-            clear_L1_Data[keys].columns = L1_meta['Height']
-
-        l_Rd_dic = Data_dic_select(L1_frame_dic, -0.5, 30.1)
-        clear_L1_Dic = Data_dic_select(clear_L1_Data, 0, 30.1)
-        Avg_Rd = {}
-        for keys in clear_L1_Data:
-            Avg_Rd[keys] = np.nanmean(clear_L1_Dic[keys].values, axis=0)
-            Avg_Rd[keys] = mean5_3(Avg_Rd[keys], 10)
-        return clear_L1_Dic
+    Avg_Rd = {}
+    for keys in clear_L1_Data:
+        Avg_Rd[keys] = np.nanmean(clear_L1_Data[keys].values, axis=0)
+        Avg_Rd[keys] = mean5_3(Avg_Rd[keys], 5)
+    return Avg_Rd['Dep532'], L1_meta['Height']
 
 
 def mean5_3(Series, m):
     n = len(Series)
     a = Series
     b = Series.copy()
-    print(b)
     for i in range(m):
         b[0] = (69 * a[0] + 4 * (a[1] + a[3]) - 6 * a[2] - a[4]) / 70
         b[1] = (2 * (a[0] + a[4]) + 27 * a[1] + 12 * a[2] - 8 * a[3]) / 35
@@ -318,7 +312,7 @@ def date_files_reading(date, path):
     return data
 
 
-def date_L1_reading(date, path):
+def date_L1_reading(date, path, path_vfm):
 
     os.chdir(path)
     f_list = os.listdir(path)
@@ -326,10 +320,11 @@ def date_L1_reading(date, path):
     for files in f_list:
         fname = re.match('^CAL_LID_L1-Standard-V4-10\.'+t_date+'.*\.hdf$',files)
         if fname is not None:
-            Data_dic, Data_meta = L1_mean_Reading(files)
+            vfm_files = path_vfm + 'CAL_LID_L2_VFM-Standard-V4-20' + files[25:]
+            Dp_height_clear, Data_height = L1_VFM_proccess(files, vfm_files)
             # Data_mean = np.nanmean(Data_dic['Dep532'], axis=0)
-            height = Data_meta['Height'] - 1.961
-            Data_height = pd.DataFrame(Data_dic['Dep532'], index=height)
+            height = Data_height - 1.961
+            Data_height = pd.DataFrame(Dp_height_clear, index=height)
 
     return Data_height
 
@@ -345,7 +340,7 @@ def target_average_dp(date, path, time_area, height_area):
     return avgdata, Dp_height
 
 
-def Satellite_compare(date, path_SACOL, path_L1, path_f, time_area=None,
+def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=None,
                       height_area=[0, 10], calibration=None, horizontal=[0.0, 0.4]):
 
     if not os.path.exists(path_f + '/dep_height/'):
@@ -355,7 +350,7 @@ def Satellite_compare(date, path_SACOL, path_L1, path_f, time_area=None,
     Sacol_data = date_files_reading(date, path_SACOL)
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values > 1] = np.nan
-    L1_data = date_L1_reading(date, path_L1)
+    L1_data = date_L1_reading(date, path_L1, path_vfm)
     Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                        meantime=3, top=height_area[1], bottum=height_area[0])
     aaa = str(avgdata)[:10]
@@ -365,7 +360,7 @@ def Satellite_compare(date, path_SACOL, path_L1, path_f, time_area=None,
     else:
         plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1], horizontal=horizontal)
 
-    plt.plot(L1_data.values,L1_data.index, color='red', linewidth=1.0)
+    plt.plot(L1_data.values, L1_data.index, color='red', linewidth=1.0)
     plt.savefig(f_path)
     plt.close()
 
@@ -404,7 +399,6 @@ def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calib
         plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
         plt.savefig(f_path)
         plt.close()
-        print(avgdata)
 
     Radar_heat(l_Rdd_dic, time_area, height_area)
     plt.savefig(f_path_heat)
@@ -459,18 +453,23 @@ process_list = ['1', '2', '3', '4', '5']
 
 satel_dic1 = {
     '20181116': [[111, 117], [0, 10]],
+    '20190112': [[111, 117], [0, 10]],
+    '20190501': [[112, 118], [0, 10]],
 }
 satel_dic2 = {
-    '20181116': [[111, 117], [0, 10]],
+    '20191113': [[33, 39], [0, 10]],
+    '20191222': [[33, 39], [0, 10]],
 }
 satel_dic3 = {
-    '20181116': [[111, 117], [0, 10]],
+    '20191113': [[33, 39], [0, 10]],
+    '20191222': [[33, 39], [0, 10]],
+    '20200104': [[33, 39], [0, 10]],
 }
 satel_dic4 = {
-    '20181116': [[111, 117], [0, 10]],
+    '20200430': [[34, 40], [0, 10]],
 }
 satel_dic5 = {
-    '20181116': [[111, 117], [0, 10]],
+    '20200625': [[114, 120], [0, 10]],
 }
 
 satel_main_dic = {
@@ -516,11 +515,10 @@ for num in process_list:
         os.mkdir(path=path_plot_dir)
 
     for key in satel_main_dic[num]:
-        Satellite_compare(key, path1, path_L1, path_plot_dir, time_area=satel_main_dic[num][key][0],
+        Satellite_compare(key, path1, path_L1, path_vfm, path_plot_dir, time_area=satel_main_dic[num][key][0],
                           height_area=[0, 15], calibration=cal_dic[num], horizontal=[0.0, 0.4])
 
 
-print(cal_dic)
 
 '''
 Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
