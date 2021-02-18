@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import mean_proccess
 
+LZU_LatLon = [35.946, 104.137]
 
 def LonLat_Distance(lonlat1, lonlat2):
     r_earth = 6378.2064

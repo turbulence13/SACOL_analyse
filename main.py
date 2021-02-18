@@ -4,11 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 import seaborn as sns
-import math
-from pyhdf.SD import *
-from pyhdf import HDF
-from pyhdf.VS import *
-import scipy.signal as sig
 import re
 import hdf_reading as hr
 import mean_proccess as mp
@@ -190,8 +185,6 @@ pathfig = 'E:/Files Data/SACOL/Figure/'
 path_L1 = 'E:/Files Data/SACOL/L1_data/'
 path_vfm = 'E:/Files Data/SACOL/VFM_data/'
 
-LZU_LatLon = [35.946, 104.137]
-
 if not os.path.exists(pathfig):# 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
 
@@ -296,7 +289,6 @@ for num in process_list:
     for key in satel_main_dic[num]:
         Satellite_compare(key, path1, path_L1, path_vfm, path_plot_dir, time_area=satel_main_dic[num][key][0],
                           height_area=[0, 15], calibration=cal_dic[num], horizontal=[0.0, 0.4])
-
 
 
 '''
