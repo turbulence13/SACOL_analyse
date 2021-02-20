@@ -71,7 +71,7 @@ def plot_by_height(series, top=10.0, bottum=0.0, horizontal=None):
         horizontal = [0, 0.1]
     plt.figure(figsize=(3, 4.5))
     plt.axis([horizontal[0], horizontal[1], top, bottum])
-    plt.plot(series.values, series.index, color='black', linewidth=1.0)
+    plt.plot(series.values, series.index, color='blue', linewidth=1.0)
     # fig.xticks(np.linspace(0, 1440, 8))
 
 
@@ -95,12 +95,12 @@ def date_L1_reading(date, path, path_vfm):
         fname = re.match('^CAL_LID_L1-Standard-V4-10\.'+t_date+'.*\.hdf$',files)
         if fname is not None:
             vfm_files = path_vfm + 'CAL_LID_L2_VFM-Standard-V4-20' + files[25:]
-            Dp_height_clear, Data_height = hr.L1_VFM_proccess(files, vfm_files)
+            Dp_height_clear, Data_height, min_distance = hr.L1_VFM_proccess(files, vfm_files)
             # Data_mean = np.nanmean(Data_dic['Dep532'], axis=0)
             height = Data_height - 1.961
             Data_height = pd.DataFrame(Dp_height_clear, index=height)
 
-    return Data_height
+    return Data_height, min_distance
 
 
 def target_average_dp(date, path, time_area, height_area):
@@ -124,7 +124,7 @@ def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=Non
     Sacol_data = date_files_reading(date, path_SACOL)
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values > 1] = np.nan
-    L1_data = date_L1_reading(date, path_L1, path_vfm)
+    L1_data, min_distance = date_L1_reading(date, path_L1, path_vfm)
     Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                        meantime=3, top=height_area[1], bottum=height_area[0])
     aaa = str(avgdata)[:10]
@@ -135,6 +135,7 @@ def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=Non
         plot_by_height(Dp_height, top=height_area[0], bottum=height_area[1], horizontal=horizontal)
 
     plt.plot(L1_data.values, L1_data.index, color='red', linewidth=1.0)
+    plt.title(label=min_distance)
     plt.savefig(f_path)
     plt.close()
 
@@ -168,9 +169,8 @@ def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calib
 
         if calibration is not None:
             cal_Dp = Dp_height - calibration
-            plt.plot(cal_Dp.values, cal_Dp.index, color='black', linewidth=1.0)
-
-        plt.text(x=0.03, y=np.mean(height_area), s='Avg:\n'+aaa)
+            plt.plot(cal_Dp.values, cal_Dp.index, color='red', linewidth=1.0)
+        plt.text(x=np.mean(horizontal), y=np.mean(height_area), s='Avg:\n'+aaa)
         plt.savefig(f_path)
         plt.close()
 
@@ -225,20 +225,24 @@ process_list = ['1', '2', '3', '4', '5']
 
 satel_dic1 = {
     '20181116': [[111, 117], [0, 10]],
-    '20190112': [[111, 117], [0, 10]],
+    '20190113': [[33, 39], [0, 10]],
     '20190501': [[112, 118], [0, 10]],
+    '20190805': [[112, 118], [0, 10]],
 }
 satel_dic2 = {
-    '20191113': [[33, 39], [0, 10]],
-    '20191222': [[33, 39], [0, 10]],
+    '20181116': [[111, 117], [0, 10]],
 }
 satel_dic3 = {
     '20191113': [[33, 39], [0, 10]],
     '20191222': [[33, 39], [0, 10]],
+    '20191209': [[33, 39], [0, 10]],
     '20200104': [[33, 39], [0, 10]],
+    '20200225': [[33, 39], [0, 10]],
+    '20200309': [[33, 39], [0, 10]],
 }
 satel_dic4 = {
     '20200430': [[34, 40], [0, 10]],
+
 }
 satel_dic5 = {
     '20200625': [[114, 120], [0, 10]],

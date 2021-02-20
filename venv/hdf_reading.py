@@ -82,9 +82,11 @@ def L1_Reading(fpath):
     Lons = sd_obj.select('Longitude').get()
     L_route = np.concatenate([Lats.T, Lons.T]).T
     target_rows = []
-
+    min_distance = 9999999
     for location in L_route:
         distance = LonLat_Distance(location, LZU_LatLon)
+        if distance < min_distance:
+            min_distance = distance
         if distance < 50:
             target_rows.append(True)
         else:
@@ -113,6 +115,7 @@ def L1_Reading(fpath):
         'Lats': Lats,
         'target rows': target_rows,
         'Height': Height,
+        'min distance': min_distance
     }
     # for key, value in Rd_dic.items():
     # value.columns = Height.values[0]
@@ -130,14 +133,12 @@ def L1_mean_Reading(fpath):
     Lons = sd_obj.select('Longitude').get()
     L_route = np.concatenate([Lats.T, Lons.T]).T
     target_rows = []
-
     for location in L_route:
         distance = LonLat_Distance(location, LZU_LatLon)
         if distance < 50:
             target_rows.append(True)
         else:
             target_rows.append(False)
-
     Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
     Per532 = sig.medfilt(Per532, [1, 15])
     Per532[Per532 < 0] = 0
@@ -208,4 +209,4 @@ def L1_VFM_proccess(f_path, vfm_path):
     for keys in clear_L1_Data:
         Avg_Rd[keys] = np.nanmean(clear_L1_Data[keys].values, axis=0)
         Avg_Rd[keys] = mean_proccess.mean5_3(Avg_Rd[keys], 5)
-    return Avg_Rd['Dep532'], L1_meta['Height']
+    return Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance']
