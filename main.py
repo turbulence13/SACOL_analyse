@@ -7,6 +7,9 @@ import seaborn as sns
 import re
 import hdf_reading as hr
 import mean_proccess as mp
+import coefficient_read as cr
+import xlrd as xr
+import openpyxl as ox
 
 
 def allspines_set(ax, is_on=True, width=1):  # 坐标轴线格式
@@ -39,8 +42,8 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
     ax_dic['Dp532'].set_xlabel('Time')
     if (time_area is not None) & (height_area is not None):
         height_c = height_area.copy()
-        height_c[0] = height_c[0]*166.6666
-        height_c[1] = height_c[1]*166.6666
+        height_c[0] = height_c[0] * 166.6666
+        height_c[1] = height_c[1] * 166.6666
         for keys in ax_dic:  # 坐标轴刻度格式
             ax_dic[keys].vlines(time_area, ymin=height_c[0], ymax=height_c[1], colors='black',
                                 linestyles='dashed')
@@ -87,12 +90,11 @@ def date_files_reading(date, path):
 
 
 def date_L1_reading(date, path, path_vfm):
-
     os.chdir(path)
     f_list = os.listdir(path)
-    t_date = date[0:4]+'-'+date[4:6]+'-'+date[6:8]
+    t_date = date[0:4] + '-' + date[4:6] + '-' + date[6:8]
     for files in f_list:
-        fname = re.match('^CAL_LID_L1-Standard-V4-10\.'+t_date+'.*\.hdf$',files)
+        fname = re.match('^CAL_LID_L1-Standard-V4-10\.' + t_date + '.*\.hdf$', files)
         if fname is not None:
             vfm_files = path_vfm + 'CAL_LID_L2_VFM-Standard-V4-20' + files[25:]
             Dp_height_clear, Data_height, min_distance = hr.L1_VFM_proccess(files, vfm_files)
@@ -104,7 +106,6 @@ def date_L1_reading(date, path, path_vfm):
 
 
 def target_average_dp(date, path, time_area, height_area):
-
     # 文件读取，跳过文件说明，选取高度作为行名，便于画图
     Rddata_dic = date_files_reading(date, path)
     Rddata_dic['Dp532'].values[Rddata_dic['Dp532'].values < 0] = np.nan
@@ -116,7 +117,6 @@ def target_average_dp(date, path, time_area, height_area):
 
 def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=None,
                       height_area=[0, 10], calibration=None, horizontal=[0.0, 0.4]):
-
     if not os.path.exists(path_f + '/dep_height/'):
         os.mkdir(path=path_f + '/dep_height/')
     f_path = path_f + '/dep_height/' + date
@@ -141,7 +141,6 @@ def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=Non
 
 
 def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calibration=None, horizontal=[0.0, 0.4]):
-
     if not os.path.exists(pathf + '/dep_height/'):
         os.mkdir(path=pathf + '/dep_height/')
     if not os.path.exists(pathf + '/heat_map/'):
@@ -170,7 +169,7 @@ def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calib
         if calibration is not None:
             cal_Dp = Dp_height - calibration
             plt.plot(cal_Dp.values, cal_Dp.index, color='red', linewidth=1.0)
-        plt.text(x=np.mean(horizontal), y=np.mean(height_area), s='Avg:\n'+aaa)
+        plt.text(x=np.mean(horizontal), y=np.mean(height_area), s='Avg:\n' + aaa)
         plt.savefig(f_path)
         plt.close()
 
@@ -185,7 +184,7 @@ pathfig = 'E:/Files Data/SACOL/Figure/'
 path_L1 = 'E:/Files Data/SACOL/L1_data/'
 path_vfm = 'E:/Files Data/SACOL/VFM_data/'
 
-if not os.path.exists(pathfig):# 文件夹创建，用于保存图片，若存在则在不创建
+if not os.path.exists(pathfig):  # 文件夹创建，用于保存图片，若存在则在不创建
     os.mkdir(path=pathfig)
 
 cal_dic1 = {
@@ -225,7 +224,6 @@ process_list = ['1', '2', '3', '4', '5']
 
 satel_dic1 = {
     '20181116': [[111, 117], [0, 10]],
-    '20190113': [[33, 39], [0, 10]],
     '20190501': [[112, 118], [0, 10]],
     '20190805': [[112, 118], [0, 10]],
 }
@@ -242,9 +240,10 @@ satel_dic3 = {
 }
 satel_dic4 = {
     '20200430': [[34, 40], [0, 10]],
-
+    '20200513': [[34, 40], [0, 10]],
 }
 satel_dic5 = {
+    '20200612': [[114, 120], [0, 10]],
     '20200625': [[114, 120], [0, 10]],
 }
 
@@ -266,19 +265,19 @@ for file in all_file_list:
 '''
 
 for num in process_list:
-    path_plot_dir = pathfig+num
+    path_plot_dir = pathfig + num
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
     cal_list = []
     for key in cal_main_dic[num]:
         Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
-                     height_area=cal_main_dic[num][key][1], horizontal=[0, 0.02])
+                          height_area=cal_main_dic[num][key][1], horizontal=[0, 0.02])
         avg_dp, dp_height = target_average_dp(key, path1, time_area=cal_main_dic[num][key][0],
                                               height_area=cal_main_dic[num][key][1])
-        cal_list.append(avg_dp-0.0044)
+        cal_list.append(avg_dp - 0.0044)
     cal_dic[num] = np.min(cal_list)
 
-    path_plot_dir = pathfig + num +'_all_height'
+    path_plot_dir = pathfig + num + '_all_height'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
@@ -286,14 +285,13 @@ for num in process_list:
         Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
                           height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
 
-    path_plot_dir = pathfig + num +'_satellite'
+    path_plot_dir = pathfig + num + '_satellite'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
     for key in satel_main_dic[num]:
         Satellite_compare(key, path1, path_L1, path_vfm, path_plot_dir, time_area=satel_main_dic[num][key][0],
                           height_area=[0, 15], calibration=cal_dic[num], horizontal=[0.0, 0.4])
-
 
 '''
 Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
