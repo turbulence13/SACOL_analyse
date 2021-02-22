@@ -36,7 +36,7 @@ def Radar_heat(data_dic, time_area=None, height_area=None):  # 针对本次绘�
                 ax=ax_dic['It532'], yticklabels=400, xticklabels=18)
     ax_dic['It532'].invert_yaxis()
     ax_dic['It532'].set_xticks(np.linspace(0, 1440, 8))
-    sns.heatmap(data_dic['Dp532'], vmax=0.3, vmin=0.0, cmap='customcb',
+    sns.heatmap(data_dic['Dp532'], vmax=0.5, vmin=0.0, cmap='customcb',
                 ax=ax_dic['Dp532'], yticklabels=400, xticklabels=18)
     ax_dic['Dp532'].invert_yaxis()
     ax_dic['Dp532'].set_xlabel('Time')
@@ -97,12 +97,18 @@ def date_L1_reading(date, path, path_vfm):
         fname = re.match('^CAL_LID_L1-Standard-V4-10\.' + t_date + '.*\.hdf$', files)
         if fname is not None:
             vfm_files = path_vfm + 'CAL_LID_L2_VFM-Standard-V4-20' + files[25:]
-            Dp_height_clear, Data_height, min_distance = hr.L1_VFM_proccess(files, vfm_files)
+            Dp_height, Dp_height_clear, Data_height, min_distance,\
+            VFM_array, Dep532_array, distance_list = hr.L1_VFM_proccess(files, vfm_files)
             # Data_mean = np.nanmean(Data_dic['Dep532'], axis=0)
             height = Data_height - 1.961
-            Data_height = pd.DataFrame(Dp_height_clear, index=height)
+            height_vfm = Data_height[(Data_height >= -0.5) & (Data_height <= 30.1)] -1.961
+            Data_height = pd.DataFrame(Dp_height, index=height)
+            Dep532_frame = pd.DataFrame(Dep532_array, columns=height, index=distance_list)
+            print('yes')
+            VFM_frame = pd.DataFrame(VFM_array, columns=height_vfm, index=distance_list)
 
-    return Data_height, min_distance
+
+    return Data_height, min_distance, Dep532_frame, VFM_frame
 
 
 def target_average_dp(date, path, time_area, height_area):
@@ -117,14 +123,22 @@ def target_average_dp(date, path, time_area, height_area):
 
 def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=None,
                       height_area=[0, 10], calibration=None, horizontal=[0.0, 0.4]):
+
     if not os.path.exists(path_f + '/dep_height/'):
         os.mkdir(path=path_f + '/dep_height/')
+    if not os.path.exists(path_f + '/heat_map/'):
+        os.mkdir(path=path_f + '/heat_map/')
+    if not os.path.exists(path_f + '/satellite/'):
+        os.mkdir(path=path_f + '/satellite/')
+
     f_path = path_f + '/dep_height/' + date
+    heat_path = path_f + '/heat_map/' + date
+    satellite_path = path_f + '/satellite/' + date
     path_L1 = path_L1
     Sacol_data = date_files_reading(date, path_SACOL)
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values > 1] = np.nan
-    L1_data, min_distance = date_L1_reading(date, path_L1, path_vfm)
+    L1_data, min_distance, Dep532_frame, VFM_frame = date_L1_reading(date, path_L1, path_vfm)
     Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                        meantime=3, top=height_area[1], bottum=height_area[0])
     aaa = str(avgdata)[:10]
@@ -137,6 +151,18 @@ def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=Non
     plt.plot(L1_data.values, L1_data.index, color='red', linewidth=1.0)
     plt.title(label=min_distance)
     plt.savefig(f_path)
+    plt.close()
+
+    Radar_heat(Sacol_data, time_area, height_area)
+    plt.savefig(heat_path)
+    plt.close()
+
+    f, ax = plt.subplots(nrows=2, figsize=(8, 6))
+    sns.heatmap(Dep532_frame.T, vmin=0, vmax=0.5, cmap='customcb', ax=ax[0])
+    sns.heatmap(VFM_frame.T, vmax=7, cmap='depratio', ax=ax[1])
+    allspines_set(ax[0])
+    allspines_set(ax[1])
+    plt.savefig(satellite_path)
     plt.close()
 
 
@@ -176,6 +202,7 @@ def Calibrate_procces(date, path, pathf, time_area=None, height_area=None, calib
     Radar_heat(l_Rdd_dic, time_area, height_area)
     plt.savefig(f_path_heat)
     plt.close()
+
 
 
 # pathf = input('Target Folder Path:')
@@ -220,31 +247,38 @@ cal_main_dic = {
     '5': cal_dic5,
 }
 cal_dic = {}
-process_list = ['1', '2', '3', '4', '5']
+process_list = ['1', '3']
 
 satel_dic1 = {
-    '20181116': [[111, 117], [0, 10]],
-    '20190501': [[112, 118], [0, 10]],
-    '20190805': [[112, 118], [0, 10]],
+    '20181116': [[111, 117], [0, 15]],
+    '20190125': [[111, 117], [0, 15]],
+    '20190418': [[112, 118], [0, 15]],
+    '20190501': [[112, 118], [0, 15]],
+    '20190805': [[112, 118], [0, 15]],
+    '20190618': [[33, 39], [0, 15]],
+    '20190314': [[33, 39], [0, 15]],
+    '20181221': [[33, 39], [0, 15]],
 }
 satel_dic2 = {
-    '20181116': [[111, 117], [0, 10]],
+    '20181116': [[111, 117], [0, 15]],
 }
 satel_dic3 = {
-    '20191113': [[33, 39], [0, 10]],
-    '20191222': [[33, 39], [0, 10]],
-    '20191209': [[33, 39], [0, 10]],
-    '20200104': [[33, 39], [0, 10]],
-    '20200225': [[33, 39], [0, 10]],
-    '20200309': [[33, 39], [0, 10]],
+    '20191113': [[33, 39], [0, 15]],
+    '20191222': [[33, 39], [0, 15]],
+    '20191209': [[33, 39], [0, 15]],
+    '20200104': [[33, 39], [0, 15]],
+    '20200130': [[33, 39], [0, 15]],
+    '20200212': [[33, 39], [0, 15]],
+    '20200225': [[33, 39], [0, 15]],
+    '20200309': [[33, 39], [0, 15]],
 }
 satel_dic4 = {
-    '20200430': [[34, 40], [0, 10]],
-    '20200513': [[34, 40], [0, 10]],
+    '20200430': [[34, 40], [0, 15]],
+    '20200513': [[34, 40], [0, 15]],
 }
 satel_dic5 = {
-    '20200612': [[114, 120], [0, 10]],
-    '20200625': [[114, 120], [0, 10]],
+    '20200612': [[114, 120], [0, 15]],
+    '20200625': [[114, 120], [0, 15]],
 }
 
 satel_main_dic = {
@@ -254,6 +288,8 @@ satel_main_dic = {
     '4': satel_dic4,
     '5': satel_dic5,
 }
+
+compare_list = ['1', '3']
 
 '''
 os.chdir(path1)
@@ -277,21 +313,22 @@ for num in process_list:
         cal_list.append(avg_dp - 0.0044)
     cal_dic[num] = np.min(cal_list)
 
-    path_plot_dir = pathfig + num + '_all_height'
+'''    path_plot_dir = pathfig + num + '_all_height'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
     for key in cal_main_dic[num]:
         Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
-                          height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
+                          height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])'''
 
+for num in compare_list:
     path_plot_dir = pathfig + num + '_satellite'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
     for key in satel_main_dic[num]:
         Satellite_compare(key, path1, path_L1, path_vfm, path_plot_dir, time_area=satel_main_dic[num][key][0],
-                          height_area=[0, 15], calibration=cal_dic[num], horizontal=[0.0, 0.4])
+                          height_area=satel_main_dic[num][key][1], calibration=cal_dic[num], horizontal=[0.0, 0.4])
 
 '''
 Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)

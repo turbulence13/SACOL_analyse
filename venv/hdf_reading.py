@@ -82,6 +82,7 @@ def L1_Reading(fpath):
     Lons = sd_obj.select('Longitude').get()
     L_route = np.concatenate([Lats.T, Lons.T]).T
     target_rows = []
+    distance_list = []
     min_distance = 9999999
     for location in L_route:
         distance = LonLat_Distance(location, LZU_LatLon)
@@ -91,6 +92,7 @@ def L1_Reading(fpath):
             target_rows.append(True)
         else:
             target_rows.append(False)
+        distance_list.append(distance)
 
     Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
     Per532 = sig.medfilt(Per532, [1, 15])
@@ -115,55 +117,8 @@ def L1_Reading(fpath):
         'Lats': Lats,
         'target rows': target_rows,
         'Height': Height,
+        'distance': distance_list,
         'min distance': min_distance
-    }
-    # for key, value in Rd_dic.items():
-    # value.columns = Height.values[0]
-    sd_obj.end()
-    HDF.HDF(fpath).close()
-    return Data_dic, Data_meta
-
-
-def L1_mean_Reading(fpath):
-    sd_obj = SD(fpath, SDC.READ)
-    Vt_obj = HDF.HDF(fpath).vstart()
-    m_data = Vt_obj.attach('metadata').read()[0]
-    Height = np.array(m_data[-2])  # 583高度对应实际海拔
-    Lats = sd_obj.select('Latitude').get()
-    Lons = sd_obj.select('Longitude').get()
-    L_route = np.concatenate([Lats.T, Lons.T]).T
-    target_rows = []
-    for location in L_route:
-        distance = LonLat_Distance(location, LZU_LatLon)
-        if distance < 50:
-            target_rows.append(True)
-        else:
-            target_rows.append(False)
-    Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
-    Per532 = sig.medfilt(Per532, [1, 15])
-    Per532[Per532 < 0] = 0
-    Tol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
-    Tol532 = sig.medfilt(Tol532, [1, 15])
-    Tol532[Tol532 < 0] = 0
-    Par532 = Tol532 - Per532
-    Par532 = sig.medfilt(Par532, [1, 15])
-    Per532_m = np.nanmean(Per532, axis=0)
-    Par532_m = np.nanmean(Par532, axis=0)
-    # proccess Dep data
-    Dep532 = np.true_divide(Per532_m, Par532_m)
-    Dep532[Par532_m <= 0.0003] = 0
-    Dep532[Par532_m <= 0.0000] = 0
-    Dep532[Dep532 > 1] = 1
-    Data_dic = {}
-    Data_dic['Tol532'] = Tol532
-    # Data_dic['Per532'] = Per532
-    # Data_dic['Par532'] = Par532
-    Data_dic['Dep532'] = Dep532
-    Data_meta = {
-        'route': L_route,
-        'Lats': Lats,
-        'target rows': target_rows,
-        'Height': Height,
     }
     # for key, value in Rd_dic.items():
     # value.columns = Height.values[0]
@@ -195,18 +150,32 @@ def L1_VFM_proccess(f_path, vfm_path):
         target_L1[key] = L1_dic[key][fff.T[0]]
     for key in VFM_dic:
         target_VFM[key] = VFM_dic[key][VFM_meta['target rows VFM']]
+
+    target_distance = np.array(L1_meta['distance'])[fff.T[0]]
     cloud_status = []
+
     for j in target_VFM['VFM']:
         if 2 in target_VFM['VFM'][j]:
             cloud_status.append(False)
         else:
             cloud_status.append(True)
+
     for keys in target_L1:
         L1_frame_dic[keys] = pd.DataFrame(target_L1[keys], columns=L1_meta['Height'])
         clear_L1_Data[keys] = pd.DataFrame(target_L1[keys][cloud_status], columns=L1_meta['Height'])
-
+    
+    '''    VFM_frame = pd.DataFrame(target_VFM['VFM'],
+                             columns=L1_meta['Height'],
+                             index=target_distance)'''
     Avg_Rd = {}
-    for keys in clear_L1_Data:
-        Avg_Rd[keys] = np.nanmean(clear_L1_Data[keys].values, axis=0)
+    for keys in L1_frame_dic:
+        Avg_Rd[keys] = np.nanmean(L1_frame_dic[keys].values, axis=0)
         Avg_Rd[keys] = mean_proccess.mean5_3(Avg_Rd[keys], 5)
-    return Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance']
+        
+    clr_Avg_Rd = {}
+    for keys in clear_L1_Data:
+        clr_Avg_Rd[keys] = np.nanmean(clear_L1_Data[keys].values, axis=0)
+        clr_Avg_Rd[keys] = mean_proccess.mean5_3(Avg_Rd[keys], 5)
+        
+    return Avg_Rd['Dep532'], clr_Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance'],\
+           target_VFM['VFM'], target_L1['Dep532'], target_distance
