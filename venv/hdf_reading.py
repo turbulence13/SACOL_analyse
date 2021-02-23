@@ -164,8 +164,13 @@ def L1_VFM_proccess(f_path, vfm_path):
     for key in VFM_dic:
         target_VFM[key] = VFM_dic[key][VFM_meta['target rows VFM']]
 
+    target_route = np.array(L1_meta['route'])[fff.T[0]]
     target_distance = np.array(L1_meta['distance'])[fff.T[0]]
+    min_point = np.where(target_distance == L1_meta['min distance'])[0][0]
     cloud_status = []
+    target_route_str = []
+    for i in range(target_route.shape[0]):
+        target_route_str.append(str(target_route[i][0])+'\n'+str(target_route[i][1]))
 
     for j in target_VFM['VFM']:
         if 2 in target_VFM['VFM'][j]:
@@ -191,4 +196,4 @@ def L1_VFM_proccess(f_path, vfm_path):
         clr_Avg_Rd[keys] = mean_proccess.mean5_3(Avg_Rd[keys], 5)
         
     return Avg_Rd['Dep532'], clr_Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance'],\
-           target_VFM['VFM'], target_L1['Dep532'], target_distance
+           target_VFM['VFM'], target_L1['Dep532'], target_route_str, min_point
