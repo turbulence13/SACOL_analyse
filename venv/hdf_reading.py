@@ -8,6 +8,7 @@ import re
 import scipy as sp
 import scipy.signal as sig
 from pyhdf.VS import *
+import cv2
 import os
 import sys
 import matplotlib.pyplot as plt
@@ -15,6 +16,17 @@ import seaborn as sns
 import mean_proccess
 
 LZU_LatLon = [35.946, 104.137]
+
+def Decode_UTC(utc):
+    yymmdd = utc // 1
+    time = utc % 1
+    time = time*86400
+    hh = int(time//3600)
+    mm = int(time % 3600 // 60//1)
+    ss = int(time % 3600 % 60 // 1)
+    hhmmss = str(hh[0])[:2]+':'+str(mm[0])[:2]+':'+str(ss[0])[:2]
+    return yymmdd, hhmmss
+
 
 def LonLat_Distance(lonlat1, lonlat2):
     r_earth = 6378.2064
@@ -94,17 +106,18 @@ def L1_Reading(fpath):
             target_rows.append(False)
         distance_list.append(distance)
 
-    Per532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
-    Per532 = sig.medfilt(Per532, [1, 15])
+    kernel = []
+    aPer532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
+    Per532 = cv2.blur(aPer532,(15,3))
     Per532[Per532 < 0] = 0
-    Tol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
-    Tol532 = sig.medfilt(Tol532, [1, 15])
+    aTol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
+    Tol532 = cv2.blur(aTol532,(15,3))
     Tol532[Tol532 < 0] = 0
-    Par532 = Tol532 - Per532
-    Par532 = sig.medfilt(Par532, [1, 15])
+    aPar532 = Tol532 - Per532
+    Par532 = cv2.blur(aPar532,(15,3))
     # proccess Dep data
     Dep532 = np.true_divide(Per532, Par532)
-    Dep532[Par532 <= 0.0003] = 0
+    Dep532[Par532 <= 0.0003] = np.nan
     Dep532[Par532 <= 0.0000] = 0
     Dep532[Dep532 > 1] = 1
     Data_dic = {}

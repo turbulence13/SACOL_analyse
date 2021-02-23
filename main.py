@@ -160,6 +160,8 @@ def Satellite_compare(date, path_SACOL, path_L1, path_vfm, path_f, time_area=Non
     f, ax = plt.subplots(nrows=2, figsize=(8, 6))
     sns.heatmap(Dep532_frame.T, vmin=0, vmax=0.5, cmap='customcb', ax=ax[0])
     sns.heatmap(VFM_frame.T, vmax=7, cmap='depratio', ax=ax[1])
+    # ax[0].hlines(20, xmax=110, xmin=0, colors='black', linestyles='dashed')
+    # ax[1].hlines(20, xmax=110, xmin=0, colors='black', linestyles='dashed')
     allspines_set(ax[0])
     allspines_set(ax[1])
     plt.savefig(satellite_path)
@@ -246,8 +248,8 @@ cal_main_dic = {
     '4': cal_dic4,
     '5': cal_dic5,
 }
-cal_dic = {}
-process_list = ['1', '3']
+
+process_list = ['1', '2', '3', '4', '5']
 
 satel_dic1 = {
     '20181116': [[111, 117], [0, 15]],
@@ -255,30 +257,29 @@ satel_dic1 = {
     '20190418': [[112, 118], [0, 15]],
     '20190501': [[112, 118], [0, 15]],
     '20190805': [[112, 118], [0, 15]],
-    '20190618': [[33, 39], [0, 15]],
-    '20190314': [[33, 39], [0, 15]],
-    '20181221': [[33, 39], [0, 15]],
+    '20190314': [[37, 43], [0, 15]],
+    '20181221': [[37, 43], [0, 15]],
 }
 satel_dic2 = {
     '20181116': [[111, 117], [0, 15]],
 }
 satel_dic3 = {
-    '20191113': [[33, 39], [0, 15]],
-    '20191222': [[33, 39], [0, 15]],
-    '20191209': [[33, 39], [0, 15]],
-    '20200104': [[33, 39], [0, 15]],
-    '20200130': [[33, 39], [0, 15]],
-    '20200212': [[33, 39], [0, 15]],
-    '20200225': [[33, 39], [0, 15]],
-    '20200309': [[33, 39], [0, 15]],
+    '20191113': [[37, 43], [0, 15]],
+    '20191222': [[37, 43], [0, 15]],
+    '20191209': [[37, 43], [0, 15]],
+    '20200104': [[37, 43], [0, 15]],
+    '20200130': [[37, 43], [0, 15]],
+    '20200212': [[37, 43], [0, 15]],
+    '20200225': [[37, 43], [0, 15]],
+    '20200309': [[37, 43], [0, 15]],
 }
 satel_dic4 = {
-    '20200430': [[34, 40], [0, 15]],
-    '20200513': [[34, 40], [0, 15]],
+    '20200430': [[37, 43], [0, 15]],
+    '20200513': [[37, 43], [0, 15]],
 }
 satel_dic5 = {
-    '20200612': [[114, 120], [0, 15]],
-    '20200625': [[114, 120], [0, 15]],
+    '20200612': [[112, 118], [0, 15]],
+    '20200625': [[112, 118], [0, 15]],
 }
 
 satel_main_dic = {
@@ -288,9 +289,15 @@ satel_main_dic = {
     '4': satel_dic4,
     '5': satel_dic5,
 }
+compare_list = ['1', '3', '4', '5']
 
-compare_list = ['1', '3']
-
+cal_dic = {
+    '1': 0.0009543304571500684,
+    '2': 0.005401334679040032,
+    '3': 0.007466093533295523,
+    '4': 0.026124242527262673,
+    '5': 0.006568091719789208,
+           }
 '''
 os.chdir(path1)
 all_file_list = os.listdir()
@@ -300,6 +307,7 @@ for file in all_file_list:
         Main_procces(date, path1, pathfig+'ALL')
 '''
 
+'''
 for num in process_list:
     path_plot_dir = pathfig + num
     if not os.path.exists(path_plot_dir):
@@ -313,13 +321,14 @@ for num in process_list:
         cal_list.append(avg_dp - 0.0044)
     cal_dic[num] = np.min(cal_list)
 
-'''    path_plot_dir = pathfig + num + '_all_height'
+    path_plot_dir = pathfig + num + '_all_height'
     if not os.path.exists(path_plot_dir):
         os.mkdir(path=path_plot_dir)
 
     for key in cal_main_dic[num]:
         Calibrate_procces(key, path1, path_plot_dir, time_area=cal_main_dic[num][key][0],
-                          height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])'''
+                          height_area=[0, 5], calibration=cal_dic[num], horizontal=[0, 0.1])
+'''
 
 for num in compare_list:
     path_plot_dir = pathfig + num + '_satellite'
@@ -330,6 +339,7 @@ for num in compare_list:
         Satellite_compare(key, path1, path_L1, path_vfm, path_plot_dir, time_area=satel_main_dic[num][key][0],
                           height_area=satel_main_dic[num][key][1], calibration=cal_dic[num], horizontal=[0.0, 0.4])
 
+print(cal_dic)
 '''
 Dp_height, avgdata = dep_by_height(Rddata_dic['Dp532'].loc['12:00':'17:00'], meantime=1)
 print(avgdata)
