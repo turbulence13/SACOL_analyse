@@ -93,6 +93,8 @@ def L1_Reading(fpath):
     Lats = sd_obj.select('Latitude').get()
     Lons = sd_obj.select('Longitude').get()
     L_route = np.concatenate([Lats.T, Lons.T]).T
+    del Lons
+    surface = sd_obj.select('Surface_Elevation').get()
     target_rows = []
     distance_list = []
     min_distance = 9999999
@@ -108,18 +110,18 @@ def L1_Reading(fpath):
 
     kernel = []
     aPer532 = np.array(sd_obj.select('Perpendicular_Attenuated_Backscatter_532').get())
-    Per532 = cv2.blur(aPer532,(15,3))
+    Per532 = cv2.blur(aPer532,(1,15))
     Per532[Per532 < 0] = 0
     aTol532 = np.array(sd_obj.select('Total_Attenuated_Backscatter_532').get())
-    Tol532 = cv2.blur(aTol532,(15,3))
+    Tol532 = cv2.blur(aTol532,(1,15))
     Tol532[Tol532 < 0] = 0
     aPar532 = Tol532 - Per532
-    Par532 = cv2.blur(aPar532,(15,3))
+    Par532 = cv2.blur(aPar532,(1,15))
     # proccess Dep data
     Dep532 = np.true_divide(Per532, Par532)
     Dep532[Par532 <= 0.0003] = np.nan
     Dep532[Par532 <= 0.0000] = 0
-    Dep532[Dep532 > 1] = 1
+    Dep532[Dep532 > 1] = np.nan
     Data_dic = {}
     Data_dic['Tol532'] = Tol532
     # Data_dic['Per532'] = Per532
@@ -127,6 +129,7 @@ def L1_Reading(fpath):
     Data_dic['Dep532'] = Dep532
     Data_meta = {
         'route': L_route,
+        'surface': surface,
         'Lats': Lats,
         'target rows': target_rows,
         'Height': Height,
@@ -166,11 +169,12 @@ def L1_VFM_proccess(f_path, vfm_path):
 
     target_route = np.array(L1_meta['route'])[fff.T[0]]
     target_distance = np.array(L1_meta['distance'])[fff.T[0]]
+    target_surface = np.array(L1_meta['surface'])[fff.T[0]]
     min_point = np.where(target_distance == L1_meta['min distance'])[0][0]
     cloud_status = []
     target_route_str = []
     for i in range(target_route.shape[0]):
-        target_route_str.append(str(target_route[i][0])+'\n'+str(target_route[i][1]))
+        target_route_str.append(str(format(target_route[i][0],'.2f'))+'\n'+str(format(target_route[i][1],'.2f')))
 
     for j in target_VFM['VFM']:
         if 2 in target_VFM['VFM'][j]:
@@ -193,7 +197,7 @@ def L1_VFM_proccess(f_path, vfm_path):
     clr_Avg_Rd = {}
     for keys in clear_L1_Data:
         clr_Avg_Rd[keys] = np.nanmean(clear_L1_Data[keys].values, axis=0)
-        clr_Avg_Rd[keys] = mean_proccess.mean5_3(Avg_Rd[keys], 5)
+        clr_Avg_Rd[keys] = mean_proccess.mean5_3(clr_Avg_Rd[keys], 5)
         
     return Avg_Rd['Dep532'], clr_Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance'],\
-           target_VFM['VFM'], target_L1['Dep532'], target_route_str, min_point
+           target_VFM['VFM'], target_L1['Dep532'], target_route_str, target_surface, min_point
