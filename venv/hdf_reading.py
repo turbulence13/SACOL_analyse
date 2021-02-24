@@ -200,4 +200,4 @@ def L1_VFM_proccess(f_path, vfm_path):
         clr_Avg_Rd[keys] = mean_proccess.mean5_3(clr_Avg_Rd[keys], 5)
         
     return Avg_Rd['Dep532'], clr_Avg_Rd['Dep532'], L1_meta['Height'] ,L1_meta['min distance'],\
-           target_VFM['VFM'], target_L1['Dep532'], target_route_str, target_surface, min_point
+           target_L1['Dep532'], target_L1['Tol532'], target_route_str, target_surface, min_point

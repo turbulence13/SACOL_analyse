@@ -98,18 +98,18 @@ def date_L1_reading(date, path, path_vfm):
         if fname is not None:
             vfm_files = path_vfm + 'CAL_LID_L2_VFM-Standard-V4-20' + files[25:]
             Dp_height, Dp_height_clear, Data_height, min_distance, \
-            VFM_array, Dep532_array, target_route, target_surface, min_point = hr.L1_VFM_proccess(files, vfm_files)
+            Dep532_array, Tol532_array, target_route, target_surface, min_point = hr.L1_VFM_proccess(files, vfm_files)
             # Data_mean = np.nanmean(Data_dic['Dep532'], axis=0)
             target_surface = target_surface
             height = Data_height-1.961
-            height_vfm = Data_height[(Data_height >= -0.5) & (Data_height <= 30.1)]
+            #height_vfm = Data_height[(Data_height >= -0.5) & (Data_height <= 30.1)]
             Dp_Data_height = pd.DataFrame(Dp_height, index=height)
             Dep532_frame = pd.DataFrame(Dep532_array, columns=Data_height, index=target_route)
 
             print(min_point)
-            VFM_frame = pd.DataFrame(VFM_array, columns=height_vfm, index=target_route)
+            Tol532_frame = pd.DataFrame(Tol532_array, columns=Data_height, index=target_route)
 
-    return Dp_Data_height, min_distance, Dep532_frame, VFM_frame, target_surface, min_point
+    return Dp_Data_height, min_distance, Tol532_frame, Dep532_frame, target_surface, min_point
 
 
 def target_average_dp(date, path, time_area, height_area):
@@ -122,7 +122,7 @@ def target_average_dp(date, path, time_area, height_area):
     return avgdata, Dp_height
 
 
-def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, min_point,
+def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, min_point, min_distance,
                  time_area, height_area, calibration, horizontal):
     plt.figure(figsize=(16, 6), dpi=120)
     x_minorlocator = AutoMinorLocator(n=4)
@@ -190,7 +190,7 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
              fontsize=15,
              )
 
-    ax3 = plt.subplot2grid((2, 50), (0, 40), colspan=12, rowspan=2)
+    ax3 = plt.subplot2grid((2, 50), (0, 39), colspan=12, rowspan=2)
     if calibration is not None:
         cal_Dp = Dp_height - calibration
     else:
@@ -204,10 +204,16 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
     ax3.tick_params(axis='both', labelsize=8)
     ax3.set_xlabel('Volume Dep Ratio')
     ax3.yaxis.set_minor_locator(y3_minorlocator)
-    ax3.text(0.005, height_area[1], 'c',
+    ax3.text(0.005, height_area[1], 'e',
              verticalalignment='top',
              horizontalalignment='left',
              fontsize=15,
+             )
+    distancestr = 'Distance='+str(format(min_distance,'.2f'))+'km'
+    ax3.text(horizontal[1], height_area[1]-0.1, distancestr,
+             verticalalignment='top',
+             horizontalalignment='right',
+             fontsize=10,
              )
     ax3.set_ylabel('Height (AGL, km)')
 
@@ -215,7 +221,7 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
 
     l_Dep532 = Dep532.T.loc[(Dep532.T.index < 9) & (Dep532.T.index > 0)]
     l_Dep532=l_Dep532.iloc[::-1]
-    sns.heatmap(l_Dep532, vmin=0, vmax=0.5, cmap='customcb', ax=ax4, xticklabels=l_Dep532.shape[1]//2)
+    sns.heatmap(l_Dep532, vmin=0, vmax=0.008, cmap='customcb', ax=ax4, xticklabels=l_Dep532.shape[1]//2)
     ax4.invert_yaxis()
     surface_frame = pd.DataFrame(target_surface*30)
     ax4.set_yticks(y2_ticks)
@@ -227,7 +233,7 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
     ax4.plot(surface_frame.index, surface_frame.values, color='black', linewidth=2)
     ax4.fill_between(surface_frame.index, surface_frame.values.T[0], color='lightgrey')
     ax4.set_ylabel('Height (ASL, km)')
-    ax4.text(2, l_Dep532.shape[0]-3, 'd',
+    ax4.text(2, l_Dep532.shape[0]-3, 'c',
              verticalalignment='top',
              horizontalalignment='left',
              fontsize=15,
@@ -236,7 +242,7 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
     ax5 = plt.subplot2grid((2, 50), (1, 19), colspan=18, rowspan=1)
     l_VFM = VFM.T.loc[(VFM.T.index < 9) & (VFM.T.index > 0)]
     l_VFM = l_VFM.iloc[::-1]
-    sns.heatmap(l_VFM, vmax=7, cmap='VFM', ax=ax5, xticklabels=l_VFM.shape[1]//2)
+    sns.heatmap(l_VFM, vmax=0.5, cmap='customcb', ax=ax5, xticklabels=l_VFM.shape[1]//2)
     ax5.invert_yaxis()
     ax5.set_yticks(y2_ticks)
     ax5.set_yticklabels(y_label, rotation=0)
@@ -248,7 +254,7 @@ def combine_plot(Sacol_data, Dep532, VFM, Dp_height, L1_data, target_surface, mi
     ax5.fill_between(surface_frame.index, surface_frame.values.T[0], color='lightgrey')
     ax5.tick_params(axis='both', labelsize=8)
     ax5.set_ylabel('Height (ASL, km)')
-    ax5.text(2, l_VFM.shape[0]-3, 'e',
+    ax5.text(2, l_VFM.shape[0]-3, 'd',
              verticalalignment='top',
              horizontalalignment='left',
              fontsize=15,
@@ -267,7 +273,7 @@ def combine_proccess(date, path_SACOL, path_L1, path_vfm, path_f, time_area=None
                      height_area=[0, 10], calibration=None, horizontal=[0.0, 0.4]):
     if not os.path.exists(path_f + '/combine/'):
         os.mkdir(path=path_f + '/combine/')
-    combine_path = path_f + '/combine/' + date
+    combine_path = path_f + '/combine/' + date+'.ps'
     path_L1 = path_L1
     Sacol_data = date_files_reading(date, path_SACOL)
     Sacol_data['Dp532'].values[Sacol_data['Dp532'].values < 0] = np.nan
@@ -275,9 +281,9 @@ def combine_proccess(date, path_SACOL, path_L1, path_vfm, path_f, time_area=None
     L1_data, min_distance, Dep532_frame, VFM_frame, target_surface, min_point = date_L1_reading(date, path_L1, path_vfm)
     Dp_height, avgdata = dep_by_height(Sacol_data['Dp532'].iloc[:, time_area[0]:time_area[1]],
                                        meantime=3, top=height_area[1], bottum=height_area[0])
-    combine_plot(Sacol_data, Dep532_frame, VFM_frame, Dp_height, L1_data, target_surface, min_point,
+    combine_plot(Sacol_data, Dep532_frame, VFM_frame, Dp_height, L1_data, target_surface, min_point, min_distance,
                  time_area, height_area, calibration, horizontal, )
-    plt.savefig(combine_path)
+    plt.savefig(combine_path, dpi=120, format='ps')
     plt.close()
 
 
